@@ -210,6 +210,12 @@ const formatSisaWaktu = (detik) => {
   return `${m}m ${s}s`
 }
 
+const formatWaktu = (timeStr) => {
+  if (!timeStr) return '-'
+  const date = new Date(timeStr)
+  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 const closeDropdown = (e) => {
   if (!e.target.closest('.action-dropdown')) {
     activeDropdown.value = null
@@ -316,7 +322,8 @@ onUnmounted(() => {
           <thead>
             <tr class="bg-slate-50/50 border-b border-slate-100">
               <th class="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Peserta</th>
-              <th class="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+               <th class="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+              <th class="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Mulai</th>
               <th class="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Progres</th>
               <th class="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Sisa Waktu</th>
               <th class="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pelanggaran</th>
@@ -349,6 +356,11 @@ onUnmounted(() => {
                     {{ p.status_ujian }}
                   </span>
                 </div>
+              </td>
+              <td class="px-6 py-5 text-center">
+                <span class="text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                  {{ formatWaktu(p.waktu_login) }}
+                </span>
               </td>
               <td class="px-6 py-5">
                 <div class="flex flex-col items-center">
@@ -449,7 +461,7 @@ onUnmounted(() => {
               </td>
             </tr>
             <tr v-if="filteredParticipants.length === 0 && !isLoading">
-              <td colspan="6" class="px-8 py-24 text-center">
+              <td colspan="7" class="px-8 py-24 text-center">
                 <div class="flex flex-col items-center gap-4">
                   <div class="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200">
                     <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>

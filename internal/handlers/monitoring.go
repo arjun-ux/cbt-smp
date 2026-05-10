@@ -20,7 +20,8 @@ type MonitorSiswa struct {
 	TotalSoal         int64  `json:"total_soal"`
 	SisaWaktu         int    `json:"sisa_waktu"`
 	JumlahPelanggaran int64  `json:"jumlah_pelanggaran"`
-	IsTerblokir       bool   `json:"is_terblokir"`
+	IsTerblokir       bool       `json:"is_terblokir"`
+	WaktuLogin        *time.Time `json:"waktu_login"`
 }
 
 // GetMonitorUjian mengambil data progres real-time untuk dashboard pengawas
@@ -53,14 +54,15 @@ func GetMonitorUjian(c *fiber.Ctx) error {
 		SisaWaktuDetik   int    `gorm:"column:sisa_waktu_detik"`
 		IsTerblokir      bool   `gorm:"column:is_terblokir"`
 		CountJawaban     int64  `gorm:"column:count_jawaban"`
-		CountPelanggaran int64  `gorm:"column:count_pelanggaran"`
-		BankSoalID       uint   `gorm:"column:bank_soal_id"`
+		CountPelanggaran int64      `gorm:"column:count_pelanggaran"`
+		BankSoalID       uint       `gorm:"column:bank_soal_id"`
+		WaktuLogin       *time.Time `gorm:"column:waktu_login"`
 	}
 
 	var rows []MonitorRow
 	err := database.DB.Raw(`
 		SELECT 
-			p.id, p.siswa_id, p.status_ujian, p.sisa_waktu_detik, p.is_terblokir,
+			p.id, p.siswa_id, p.status_ujian, p.sisa_waktu_detik, p.is_terblokir, p.waktu_login,
 			s.nama_lengkap as nama_siswa,
 			k.nama_kelas as kelas,
 			j.bank_soal_id,
@@ -98,6 +100,7 @@ func GetMonitorUjian(c *fiber.Ctx) error {
 			SisaWaktu:         r.SisaWaktuDetik,
 			JumlahPelanggaran: r.CountPelanggaran,
 			IsTerblokir:       r.IsTerblokir,
+			WaktuLogin:        r.WaktuLogin,
 		})
 	}
 
