@@ -25,21 +25,19 @@ func GetGurus(c *fiber.Ctx) error {
 	// Kita join dengan tabel user agar bisa lihat is_active
 	database.DB.Preload("User").Find(&gurus)
 
-	return c.JSON(fiber.Map{
-		"data": gurus,
-	})
+	return SendSuccess(c, "Berhasil mengambil daftar guru", gurus)
 }
 
 // CreateGuru menambah guru baru (sekaligus membuatkan akun login)
 func CreateGuru(c *fiber.Ctx) error {
 	var input GuruInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	// Validasi dasar
 	if input.NIP == "" || input.NamaGuru == "" || input.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "NIP, Nama, dan Password wajib diisi"})
+		return SendError(c, fiber.StatusBadRequest, "NIP, Nama, dan Password wajib diisi")
 	}
 
 	// Gunakan Transaction agar jika salah satu gagal, semuanya dibatalkan
@@ -77,10 +75,10 @@ func CreateGuru(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal menyimpan data guru (Mungkin NIP sudah terdaftar)"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal menyimpan data guru (Mungkin NIP sudah terdaftar)")
 	}
 
-	return c.JSON(fiber.Map{"message": "Guru berhasil ditambahkan"})
+	return SendSuccess(c, "Guru berhasil ditambahkan", nil)
 }
 
 // UpdateGuru mengubah data guru (nama atau reset password)
@@ -88,12 +86,12 @@ func UpdateGuru(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var input GuruInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	var guru models.MasterGuru
 	if err := database.DB.Preload("User").First(&guru, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Guru tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Guru tidak ditemukan")
 	}
 
 	// LOCKING: Cek apakah guru sedang mengawas ujian aktif
@@ -103,7 +101,7 @@ func UpdateGuru(c *fiber.Ctx) error {
 		Count(&activeDutyCount)
 	
 	if activeDutyCount > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Data guru tidak dapat diubah karena sedang bertugas sebagai pengawas pada ujian yang sedang berlangsung."})
+		return SendError(c, fiber.StatusForbidden, "Data guru tidak dapat diubah karena sedang bertugas sebagai pengawas pada ujian yang sedang berlangsung.")
 	}
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
@@ -134,10 +132,10 @@ func UpdateGuru(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal memperbarui data guru"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal memperbarui data guru")
 	}
 
-	return c.JSON(fiber.Map{"message": "Data guru berhasil diperbarui"})
+	return SendSuccess(c, "Data guru berhasil diperbarui", nil)
 }
 
 // DeleteGuru menghapus guru dan akun loginnya secara permanen
@@ -146,7 +144,7 @@ func DeleteGuru(c *fiber.Ctx) error {
 	
 	var guru models.MasterGuru
 	if err := database.DB.First(&guru, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Guru tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Guru tidak ditemukan")
 	}
 
 	// LOCKING: Cek apakah guru sedang mengawas ujian aktif
@@ -156,7 +154,7 @@ func DeleteGuru(c *fiber.Ctx) error {
 		Count(&activeDutyCount)
 	
 	if activeDutyCount > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Guru tidak dapat dihapus karena sedang bertugas sebagai pengawas pada ujian yang sedang berlangsung."})
+		return SendError(c, fiber.StatusForbidden, "Guru tidak dapat dihapus karena sedang bertugas sebagai pengawas pada ujian yang sedang berlangsung.")
 	}
 
 	// Gunakan transaksi untuk menghapus di kedua tabel
@@ -177,10 +175,10 @@ func DeleteGuru(c *fiber.Ctx) error {
 		if strings.Contains(err.Error(), "FOREIGN KEY") {
 			errorMessage = "Guru tidak dapat dihapus karena masih memiliki data Bank Soal, penugasan Mapel, atau sedang ditugaskan sebagai Pengawas Ujian. Silakan pindahkan atau hapus keterikatan data tersebut terlebih dahulu."
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": errorMessage})
+		return SendError(c, fiber.StatusInternalServerError, errorMessage)
 	}
 
-	return c.JSON(fiber.Map{"message": "Guru berhasil dihapus secara permanen"})
+	return SendSuccess(c, "Guru berhasil dihapus secara permanen", nil)
 }
 
 // ToggleGuruStatus mengaktifkan atau menonaktifkan akun guru
@@ -188,7 +186,7 @@ func ToggleGuruStatus(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var guru models.MasterGuru
 	if err := database.DB.Preload("User").First(&guru, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Guru tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Guru tidak ditemukan")
 	}
 
 	// Balikkan status is_active
@@ -200,7 +198,7 @@ func ToggleGuruStatus(c *fiber.Ctx) error {
 		status = "dinonaktifkan"
 	}
 
-	return c.JSON(fiber.Map{"message": "Akun guru berhasil " + status})
+	return SendSuccess(c, "Akun guru berhasil " + status, nil)
 }
 
 // ImportGuru memproses mass-upload guru via CSV (Turbo Parallel)

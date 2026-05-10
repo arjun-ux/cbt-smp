@@ -11,23 +11,23 @@ import (
 func GetRuang(c *fiber.Ctx) error {
 	var data []models.MasterRuang
 	database.DB.Find(&data)
-	return c.JSON(fiber.Map{"data": data})
+	return SendSuccess(c, "Berhasil mengambil daftar ruang", data)
 }
 
 func CreateRuang(c *fiber.Ctx) error {
 	var data models.MasterRuang
 	if err := c.BodyParser(&data); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, 400, "Input tidak valid")
 	}
 	database.DB.Create(&data)
-	return c.JSON(fiber.Map{"message": "Ruang berhasil dibuat", "data": data})
+	return SendSuccess(c, "Ruang berhasil dibuat", data)
 }
 
 func UpdateRuang(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var data models.MasterRuang
 	if err := database.DB.First(&data, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Data tidak ditemukan"})
+		return SendError(c, 404, "Data tidak ditemukan")
 	}
 
 	// LOCKING: Cek apakah ruangan sedang digunakan ujian aktif
@@ -37,14 +37,14 @@ func UpdateRuang(c *fiber.Ctx) error {
 		Count(&activeExamCount)
 
 	if activeExamCount > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Data ruangan tidak dapat diubah karena sedang digunakan untuk ujian yang sedang berlangsung."})
+		return SendError(c, fiber.StatusForbidden, "Data ruangan tidak dapat diubah karena sedang digunakan untuk ujian yang sedang berlangsung.")
 	}
 
 	if err := c.BodyParser(&data); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, 400, "Input tidak valid")
 	}
 	database.DB.Save(&data)
-	return c.JSON(fiber.Map{"message": "Ruang berhasil diupdate"})
+	return SendSuccess(c, "Ruang berhasil diupdate", nil)
 }
 
 func DeleteRuang(c *fiber.Ctx) error {
@@ -55,8 +55,8 @@ func DeleteRuang(c *fiber.Ctx) error {
 		if strings.Contains(err.Error(), "FOREIGN KEY") {
 			errorMessage = "Ruangan tidak dapat dihapus karena masih digunakan oleh data Siswa atau Jadwal Ujian."
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": errorMessage})
+		return SendError(c, fiber.StatusInternalServerError, errorMessage)
 	}
 	
-	return c.JSON(fiber.Map{"message": "Ruang berhasil dihapus"})
+	return SendSuccess(c, "Ruang berhasil dihapus", nil)
 }

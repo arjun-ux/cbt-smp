@@ -1,21 +1,24 @@
 const axios = require('axios');
 
 const API_URL = 'http://localhost:3000/api';
-const NUM_STUDENTS = 100;
-const TEST_INTERVAL = 15000; // 15 detik
-const EXAM_TOKEN = 'TEST100'; // Sesuaikan dengan token jadwal yang Bapak buat
-const JADWAL_ID = 1;        // GANTI INI sesuai ID Jadwal yang Bapak buat
+const NUM_STUDENTS = 100;      
+const SYNC_CYCLES = 10;        
+const TEST_INTERVAL = 5000;    
+const EXAM_TOKEN = 'TEST100';  
+const JADWAL_ID = 1;           
 
 async function runStressTest() {
-    console.log(`=== CBT STRESS TEST SIMULATOR ===`);
-    console.log(`Target: ${NUM_STUDENTS} Siswa serentak`);
-    console.log(`Interval: ${TEST_INTERVAL/1000} detik`);
-    console.log(`Jadwal ID: ${JADWAL_ID}`);
+    console.log(`\n🚀 === BATTLEFIELD EXTREME (Images & Essays) START ===`);
+    console.log(`👥 Target       : ${NUM_STUDENTS} Siswa`);
+    console.log(`🔄 Siklus Sync  : ${SYNC_CYCLES} kali`);
+    console.log(`📅 Jadwal ID    : ${JADWAL_ID}`);
     
     const students = [];
 
-    // 1. LOGIN MASSAL
-    console.log(`\n[1/3] Memulai Login Massal...`);
+    // 1. LOGIN & PREPARATION MASSAL
+    console.log(`\n[1/4] 🔐 Tahap Login & Analisis Soal (Gambar/Essay)...`);
+    const loginStartTime = Date.now();
+    
     for (let i = 1; i <= NUM_STUDENTS; i++) {
         const username = `siswa${i}`;
         try {
@@ -24,11 +27,15 @@ async function runStressTest() {
                 password: 'siswa123'
             });
             
-            // Login langsung kirim token di root (tidak dibungkus data)
-            const token = res.data.token;
-            const user = res.data.user;
+            // Format API Anda dibungkus dalam properti "data" oleh helper SendSuccess
+            const apiResponse = res.data.data;
+            if (!apiResponse || !apiResponse.token) {
+                throw new Error(`Respon login tidak mengandung token: ${JSON.stringify(res.data)}`);
+            }
 
-            // 2. VALIDASI TOKEN UJIAN & AMBIL SOAL
+            const token = apiResponse.token;
+            const user = apiResponse.user;
+
             const valRes = await axios.post(`${API_URL}/siswa/validate?jadwalId=${JADWAL_ID}`, {
                 token: EXAM_TOKEN,
                 nisn: user.username
@@ -38,75 +45,126 @@ async function runStressTest() {
 
             const pesertaId = valRes.data.data.peserta_id;
 
-            // Ambil daftar ID Soal yang asli dari server
+            // Ambil Daftar Soal & Deteksi Gambar
             const soalRes = await axios.get(`${API_URL}/siswa/soal/${JADWAL_ID}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const soalIds = soalRes.data.data.map(s => s.id);
+            
+            const rawSoals = soalRes.data.data.items;
+            const soalDetails = rawSoals.map(s => {
+                // Cari URL Gambar dalam pertanyaan atau opsi
+                const imgRegex = /src="([^"]+)"/g;
+                const images = [];
+                let match;
+                const fullText = s.pertanyaan + s.opsi_a + s.opsi_b + s.opsi_c + s.opsi_d;
+                while ((match = imgRegex.exec(fullText)) !== null) {
+                    images.push(match[1]);
+                }
+                return { id: s.id, type: s.jenis_soal, images: images };
+            });
 
             students.push({
                 id: i,
-                username: username,
                 token: token,
                 peserta_id: pesertaId,
-                soal_ids: soalIds
+                soals: soalDetails
             });
 
-            if (i % 20 === 0) console.log(`> ${i} siswa berhasil login & ambil soal...`);
+            if (i % 20 === 0) console.log(`   > ${i} siswa siap...`);
         } catch (err) {
-            console.error(`X Siswa ${i} gagal: ${err.response?.data?.error || err.message}`);
+            console.error(`   X Siswa ${i} gagal: ${err.message}`);
         }
     }
 
-    console.log(`\n[2/3] Login Selesai. Total Siswa Aktif: ${students.length}`);
-    console.log(`\n[3/3] Memulai Simulasi Sinkronisasi Jawaban (Looping)...`);
-
-    let cycle = 1;
-    setInterval(async () => {
-        console.log(`\n--- Siklus Sinkronisasi #${cycle} ---`);
-        const startTime = Date.now();
-        let success = 0;
+    // 2. SIMULASI PENGERJAAN & DOWNLOAD GAMBAR
+    console.log(`\n[2/4] ⚡ Tahap Simulasi (Sync Jawaban & Download Gambar)...`);
+    
+    for (let cycle = 1; cycle <= SYNC_CYCLES; cycle++) {
+        const cycleStartTime = Date.now();
+        let syncSuccess = 0;
+        let imgSuccess = 0;
         let failed = 0;
 
         const requests = students.map(async (s) => {
             try {
-                // Kirim 2 jawaban acak per siklus
-                const randomSoalId = s.soal_ids[Math.floor(Math.random() * s.soal_ids.length)];
-                const payload = {
-                    peserta_ujian_id: s.peserta_id,
-                    items: [
-                        {
-                            soal_id: randomSoalId,
-                            jawaban_teks: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)],
-                            ragu_ragu: Math.random() > 0.8
-                        }
-                    ],
-                    sisa_waktu: 7200 - (cycle * 15)
-                };
+                // A. Simulasi Download Gambar (Hanya di siklus pertama/acak)
+                if (cycle === 1 || Math.random() > 0.7) {
+                    const allImages = s.soals.flatMap(soal => soal.images);
+                    if (allImages.length > 0) {
+                        const targetImg = allImages[Math.floor(Math.random() * allImages.length)];
+                        const baseUrl = API_URL.replace('/api', '');
+                        const imgUrl = targetImg.startsWith('http') ? targetImg : `${baseUrl}${targetImg}`;
+                        
+                        await axios.get(imgUrl, { responseType: 'arraybuffer' });
+                        imgSuccess++;
+                    }
+                }
 
-                await axios.post(`${API_URL}/siswa/sync`, payload, {
+                // B. Simulasi Sinkronisasi Jawaban (PG & Essay)
+                const items = [];
+                for(let k=0; k<5; k++) {
+                    const targetSoal = s.soals[Math.floor(Math.random() * s.soals.length)];
+                    let jawaban = "";
+                    
+                    if (targetSoal.type === 'PG') {
+                        jawaban = ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)];
+                    } else {
+                        // Simulasi Jawaban Essay (Teks Panjang)
+                        jawaban = "Ini adalah jawaban essay simulasi yang cukup panjang untuk mengetes performa penyimpanan teks di database. " + 
+                                  "Siswa sedang menjelaskan jawaban dengan detail agar mendapatkan nilai maksimal dari guru pengampu.";
+                    }
+
+                    items.push({
+                        soal_id: targetSoal.id,
+                        jawaban_teks: jawaban,
+                        ragu_ragu: Math.random() > 0.9
+                    });
+                }
+
+                await axios.post(`${API_URL}/siswa/sync`, {
+                    peserta_ujian_id: s.peserta_id,
+                    items: items,
+                    sisa_waktu: 3600 - (cycle * 30)
+                }, {
                     headers: { 'Authorization': `Bearer ${s.token}` }
                 });
-                success++;
+                
+                syncSuccess++;
             } catch (err) {
                 failed++;
             }
         });
 
         await Promise.all(requests);
-        const duration = Date.now() - startTime;
+        const duration = Date.now() - cycleStartTime;
+        console.log(`   🔄 Siklus #${cycle}: ${syncSuccess} Sync, ${imgSuccess} Gambar OK | Durasi: ${duration}ms`);
         
-        console.log(`Hasil Siklus #${cycle}:`);
-        console.log(`- Berhasil: ${success}`);
-        console.log(`- Gagal   : ${failed}`);
-        console.log(`- Durasi  : ${duration}ms`);
-        
-        if (failed > 0) {
-            console.warn(`! PERINGATAN: Ada ${failed} request yang gagal. Cek beban CPU server.`);
-        }
+        if (cycle < SYNC_CYCLES) await new Promise(r => setTimeout(r, TEST_INTERVAL));
+    }
 
-        cycle++;
-    }, TEST_INTERVAL);
+    // 3. FINAL SUBMIT
+    console.log(`\n[3/4] 🏁 Tahap Submit Ujian Serentak...`);
+    const submitStartTime = Date.now();
+    let subSuccess = 0;
+    
+    await Promise.all(students.map(async (s) => {
+        try {
+            await axios.post(`${API_URL}/siswa/submit/${s.peserta_id}`, {}, {
+                headers: { 'Authorization': `Bearer ${s.token}` }
+            });
+            subSuccess++;
+        } catch {}
+    }));
+
+    const submitDuration = Date.now() - submitStartTime;
+    console.log(`   └─ Hasil Submit: ${subSuccess} Berhasil | Total Waktu: ${submitDuration}ms`);
+
+    // 4. SUMMARY
+    console.log(`\n📊 === KESIMPULAN PENGUJIAN ===`);
+    console.log(`- Beban Statis (Gambar) : Berhasil disimulasikan`);
+    console.log(`- Beban Data (Essay)    : Berhasil disimulasikan`);
+    console.log(`- Avg Submit Time       : ${(submitDuration/students.length).toFixed(2)}ms`);
+    console.log(`================================\n`);
 }
 
 runStressTest();

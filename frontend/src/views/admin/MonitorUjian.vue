@@ -18,9 +18,39 @@ const selectedPeserta = ref(null)
 const isActionLoading = ref(false)
 const searchQuery = ref('')
 
-const showResetConfirm = ref(false)
+const showResetSesiModal = ref(false)
+const showResetFullModal = ref(false)
 const resetTargetId = ref(null)
 const isResetting = ref(false)
+const activeDropdown = ref(null)
+const dropdownPos = ref({ top: 0, left: 0 })
+
+const toggleDropdown = (e, id) => {
+  if (activeDropdown.value === id) {
+    activeDropdown.value = null
+  } else {
+    activeDropdown.value = id
+    const rect = e.currentTarget.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    
+    // Gunakan posisi fixed agar menempel presisi di layar
+    if (spaceBelow < 180) {
+      // Buka ke ATAS (Tempelkan bagian bawah dropdown ke bagian atas tombol)
+      dropdownPos.value = {
+        top: 'auto',
+        bottom: `${window.innerHeight - rect.top + 8}px`,
+        left: `${rect.right - 192 + window.scrollX}px`
+      }
+    } else {
+      // Buka ke BAWAH (Tempelkan bagian atas dropdown ke bagian bawah tombol)
+      dropdownPos.value = {
+        top: `${rect.bottom + window.scrollY + 8}px`,
+        bottom: 'auto',
+        left: `${rect.right - 192 + window.scrollX}px`
+      }
+    }
+  }
+}
 
 
 const apiPrefix = computed(() => authStore.user?.role === 'admin' ? '/api/admin' : '/api/guru')
@@ -119,7 +149,12 @@ const handleUnblock = async (pesertaId) => {
 
 const confirmResetSesi = (pesertaId) => {
   resetTargetId.value = pesertaId
-  showResetConfirm.value = true
+  showResetSesiModal.value = true
+}
+
+const confirmResetFull = (pesertaId) => {
+  resetTargetId.value = pesertaId
+  showResetFullModal.value = true
 }
 
 const executeResetSesi = async () => {
@@ -132,11 +167,34 @@ const executeResetSesi = async () => {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (res.ok) {
-      alertStore.showAlert("Sesi berhasil di-reset", "success")
-      showResetConfirm.value = false
+      alertStore.showAlert("Sesi login berhasil di-reset", "success")
+      showResetSesiModal.value = false
       fetchData()
     } else {
       alertStore.showAlert("Gagal reset sesi", "error")
+    }
+  } catch (error) {
+    alertStore.showAlert("Kesalahan koneksi", "error")
+  } finally {
+    isResetting.value = false
+  }
+}
+
+const executeResetFull = async () => {
+  if (!resetTargetId.value) return
+  
+  isResetting.value = true
+  try {
+    const res = await fetch(`${apiPrefix.value}/monitor/reset-ujian/${resetTargetId.value}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      alertStore.showAlert("Ujian berhasil di-reset total", "success")
+      showResetFullModal.value = false
+      fetchData()
+    } else {
+      alertStore.showAlert("Gagal reset total", "error")
     }
   } catch (error) {
     alertStore.showAlert("Kesalahan koneksi", "error")
@@ -152,15 +210,29 @@ const formatSisaWaktu = (detik) => {
   return `${m}m ${s}s`
 }
 
+const closeDropdown = (e) => {
+  if (!e.target.closest('.action-dropdown')) {
+    activeDropdown.value = null
+  }
+}
+
+const handleScroll = () => {
+  activeDropdown.value = null
+}
+
 onMounted(() => {
   fetchData()
   fetchJadwalDetail()
   // Polling setiap 10 detik
   pollingInterval.value = setInterval(fetchData, 10000)
+  window.addEventListener('click', closeDropdown)
+  window.addEventListener('scroll', handleScroll, true)
 })
 
 onUnmounted(() => {
   if (pollingInterval.value) clearInterval(pollingInterval.value)
+  window.removeEventListener('click', closeDropdown)
+  window.removeEventListener('scroll', handleScroll, true)
 })
 </script>
 
@@ -311,30 +383,65 @@ onUnmounted(() => {
               </td>
               <td class="px-8 py-5 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <button 
-                    v-if="isAuthorized"
-                    @click="confirmResetSesi(p.id)"
-                    class="w-10 h-10 flex items-center justify-center text-blue-500 hover:bg-blue-50 rounded-2xl transition-all active:scale-90 border border-transparent hover:border-blue-100"
-                    title="Reset Login / Sesi"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                  </button>
-                  <button 
-                    v-if="isAuthorized && p.is_terblokir"
-                    @click="handleUnblock(p.id)"
-                    class="w-10 h-10 flex items-center justify-center text-orange-400 hover:bg-orange-50 rounded-2xl transition-all active:scale-90 border border-transparent hover:border-orange-100"
-                    title="Buka Blokir"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
-                  </button>
-                  <button 
-                    v-if="isAuthorized && p.status_ujian !== 'Selesai'"
-                    @click="confirmForceSubmit(p)"
-                    class="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all active:scale-90 border border-transparent hover:border-rose-100"
-                    title="Hentikan Paksa Ujian"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  </button>
+                  <!-- SAFE ACTIONS (ZONA AMAN) -->
+                  <div class="flex items-center gap-1">
+                    <button 
+                      v-if="isAuthorized && p.is_terblokir"
+                      @click="handleUnblock(p.id)"
+                      class="w-10 h-10 flex items-center justify-center text-orange-500 hover:bg-orange-50 rounded-2xl transition-all active:scale-90 border border-orange-100 shadow-sm"
+                      title="Buka Blokir Siswa"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <button 
+                      v-if="isAuthorized"
+                      @click="confirmResetSesi(p.id)"
+                      class="w-10 h-10 flex items-center justify-center text-blue-500 hover:bg-blue-50 rounded-2xl transition-all active:scale-90 border border-blue-100 shadow-sm"
+                      title="Reset Login (Sesi)"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                    </button>
+                  </div>
+
+                  <!-- DANGER ZONE (ZONA BERBAHAYA) -->
+                  <div v-if="isAuthorized" class="action-dropdown">
+                    <button 
+                      @click.stop="toggleDropdown($event, p.id)"
+                      class="w-10 h-10 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all border border-slate-200 shadow-sm"
+                      :class="{ 'bg-slate-200 text-slate-700': activeDropdown === p.id }"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+                    </button>
+
+                    <!-- Dropdown Menu (Teleported to Body to avoid clipping) -->
+                    <Teleport to="body">
+                      <div 
+                        v-if="activeDropdown === p.id"
+                        class="fixed w-48 bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 py-2 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200"
+                        :style="dropdownPos"
+                      >
+                        <div class="px-4 py-2 mb-1 border-b border-slate-50">
+                          <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Aksi Berisiko</p>
+                        </div>
+                        <button 
+                          v-if="p.status_ujian !== 'Selesai'"
+                          @click="confirmForceSubmit(p)"
+                          class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          Hentikan Paksa
+                        </button>
+                        <button 
+                          @click="confirmResetFull(p.id)"
+                          class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                          Reset Total (Ulang)
+                        </button>
+                      </div>
+                    </Teleport>
+                  </div>
+
                   <div v-if="!isAuthorized" class="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">View Only</span>
                   </div>
@@ -369,16 +476,26 @@ onUnmounted(() => {
       @close="showForceSubmitModal = false"
       @confirm="handleForceSubmit"
     />
-    <!-- Reset Session Confirmation -->
     <ConfirmModal 
-      :show="showResetConfirm"
-      title="Reset Sesi Siswa"
-      message="Apakah Anda yakin ingin me-reset sesi siswa ini? Gunakan jika siswa mengalami kendala teknis (PC mati/crash)."
+      :show="showResetSesiModal"
+      title="Reset Sesi Login Siswa"
+      message="Gunakan ini jika siswa mengalami kendala teknis (PC mati/crash) agar bisa login kembali di perangkat lain. Progres jawaban dan waktu TIDAK akan hilang."
       :isLoading="isResetting"
-      confirmText="Ya, Reset Sesi"
+      confirmText="Ya, Reset Login"
       variant="primary"
-      @close="showResetConfirm = false"
+      @close="showResetSesiModal = false"
       @confirm="executeResetSesi"
+    />
+
+    <ConfirmModal 
+      :show="showResetFullModal"
+      title="RESET TOTAL UJIAN?"
+      message="PERHATIAN: Seluruh jawaban siswa akan DIHAPUS dan waktu akan dikembalikan ke awal. Siswa akan mengulang ujian dari nomor 1. Aksi ini tidak dapat dibatalkan!"
+      :isLoading="isResetting"
+      confirmText="Ya, Hapus Semua & Ulang"
+      variant="danger"
+      @close="showResetFullModal = false"
+      @confirm="executeResetFull"
     />
   </div>
 </template>

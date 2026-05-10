@@ -31,4 +31,3 @@ Dokumen ini mencatat rencana strategis untuk menangani kendala teknis saat pelak
 *   **Snapshot Policy:** Data dipindahkan ke arsip setelah ujian selesai dan diverifikasi.
 *   **Deletion Safety:** Mencegah penghapusan Jadwal Ujian yang datanya belum masuk ke Arsip Nilai.
 *   **Data Longevity:** Menjamin nilai tetap ada meskipun data Master Siswa atau Master Kelas sudah dihapus (misal setelah siswa lulus).
-

@@ -22,8 +22,9 @@ func ConnectDB() {
 		dbPath = "cbt.db"
 	}
 
-	// Kita gunakan file DB dari .env dengan Foreign Key diaktifkan
-	DB, err = gorm.Open(sqlite.Open(dbPath+"?_pragma=foreign_keys(1)"), &gorm.Config{})
+	// Gunakan WAL Mode agar Read dan Write tidak saling mengunci (Mencegah "Pending" di Frontend)
+	dsn := dbPath + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
+	DB, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Gagal koneksi ke database SQLite: \n", err)
 	}

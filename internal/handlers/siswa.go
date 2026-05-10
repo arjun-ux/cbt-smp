@@ -38,20 +38,18 @@ func GetSiswas(c *fiber.Ctx) error {
 		Preload("Sesi").
 		Find(&siswas)
 
-	return c.JSON(fiber.Map{
-		"data": siswas,
-	})
+	return SendSuccess(c, "Berhasil mengambil daftar siswa", siswas)
 }
 
 // CreateSiswa menambah siswa baru (sekaligus membuatkan akun login)
 func CreateSiswa(c *fiber.Ctx) error {
 	var input SiswaInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	if input.NISN == "" || input.NamaLengkap == "" || input.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "NISN, Nama, dan Password wajib diisi"})
+		return SendError(c, fiber.StatusBadRequest, "NISN, Nama, dan Password wajib diisi")
 	}
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
@@ -96,10 +94,10 @@ func CreateSiswa(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal menyimpan data siswa (Periksa apakah NISN sudah terdaftar)"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal menyimpan data siswa (Periksa apakah NISN sudah terdaftar)")
 	}
 
-	return c.JSON(fiber.Map{"message": "Siswa berhasil ditambahkan"})
+	return SendSuccess(c, "Siswa berhasil ditambahkan", nil)
 }
 
 // UpdateSiswa mengubah data siswa
@@ -107,12 +105,12 @@ func UpdateSiswa(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var input SiswaInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	var siswa models.MasterSiswa
 	if err := database.DB.Preload("User").First(&siswa, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Siswa tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Siswa tidak ditemukan")
 	}
 
 	// LOCKING: Cek apakah siswa sedang ikut ujian aktif
@@ -123,7 +121,7 @@ func UpdateSiswa(c *fiber.Ctx) error {
 		Count(&activeExamCount)
 	
 	if activeExamCount > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Data siswa tidak dapat diubah karena siswa sedang mengikuti ujian yang sedang berlangsung."})
+		return SendError(c, fiber.StatusForbidden, "Data siswa tidak dapat diubah karena siswa sedang mengikuti ujian yang sedang berlangsung.")
 	}
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
@@ -172,10 +170,10 @@ func UpdateSiswa(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal memperbarui data siswa"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal memperbarui data siswa")
 	}
 
-	return c.JSON(fiber.Map{"message": "Data siswa berhasil diperbarui"})
+	return SendSuccess(c, "Data siswa berhasil diperbarui", nil)
 }
 // DeleteSiswa menghapus siswa dan akun loginnya secara permanen
 func DeleteSiswa(c *fiber.Ctx) error {
@@ -183,7 +181,7 @@ func DeleteSiswa(c *fiber.Ctx) error {
 	
 	var siswa models.MasterSiswa
 	if err := database.DB.First(&siswa, id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Siswa tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Siswa tidak ditemukan")
 	}
 
 	// Gunakan transaksi untuk menghapus di kedua tabel
@@ -204,10 +202,10 @@ func DeleteSiswa(c *fiber.Ctx) error {
 		if strings.Contains(err.Error(), "FOREIGN KEY") {
 			errorMessage = "Siswa tidak dapat dihapus karena sudah memiliki data ujian/nilai. Silakan hapus data ujian terkait terlebih dahulu."
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": errorMessage})
+		return SendError(c, fiber.StatusInternalServerError, errorMessage)
 	}
 
-	return c.JSON(fiber.Map{"message": "Siswa berhasil dihapus secara permanen"})
+	return SendSuccess(c, "Siswa berhasil dihapus secara permanen", nil)
 }
 
 // ToggleSiswaStatus mengaktifkan atau menonaktifkan akun siswa
@@ -215,7 +213,7 @@ func ToggleSiswaStatus(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var siswa models.MasterSiswa
 	if err := database.DB.Preload("User").First(&siswa, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Siswa tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Siswa tidak ditemukan")
 	}
 
 	// Balikkan status is_active
@@ -227,7 +225,7 @@ func ToggleSiswaStatus(c *fiber.Ctx) error {
 		status = "dinonaktifkan"
 	}
 
-	return c.JSON(fiber.Map{"message": "Akun siswa berhasil " + status})
+	return SendSuccess(c, "Akun siswa berhasil " + status, nil)
 }
 
 // ImportSiswa memproses mass-upload siswa via CSV (Turbo Parallel)
@@ -334,11 +332,11 @@ func ImportSiswa(c *fiber.Ctx) error {
 func BulkPlotSiswa(c *fiber.Ctx) error {
 	var input BulkPlotInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	if len(input.SiswaIDs) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Pilih minimal satu siswa"})
+		return SendError(c, fiber.StatusBadRequest, "Pilih minimal satu siswa")
 	}
 
 	var ruangID, sesiID *uint
@@ -354,8 +352,8 @@ func BulkPlotSiswa(c *fiber.Ctx) error {
 		}).Error
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal memplot siswa secara massal"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal memplot siswa secara massal")
 	}
 
-	return c.JSON(fiber.Map{"message": "Berhasil memplot " + strings.Join(strings.Fields(fmt.Sprintf("%d", len(input.SiswaIDs))), "") + " siswa"})
+	return SendSuccess(c, "Berhasil memplot siswa secara massal", nil)
 }

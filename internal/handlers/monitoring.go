@@ -111,7 +111,7 @@ func ForceSubmit(c *fiber.Ctx) error {
 
 	var peserta models.CBTPesertaUjian
 	if err := database.DB.Preload("Jadwal").First(&peserta, pesertaID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Peserta tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
 	}
 
 	// Security Check
@@ -125,7 +125,7 @@ func ForceSubmit(c *fiber.Ctx) error {
 	}
 
 	// Hitung Nilai PG Otomatis
-	totalNilaiPG := HitungNilaiPG(peserta.ID, peserta.Jadwal.BankSoalID)
+	totalNilaiPG := HitungNilaiPG(database.DB, peserta.ID, peserta.Jadwal.BankSoalID)
 
 	// Update status menjadi Selesai dan masukkan Nilai
 	now := time.Now()
@@ -142,7 +142,7 @@ func ForceSubmit(c *fiber.Ctx) error {
 		KeteranganLog:  "Dihentikan Paksa oleh Pengawas",
 	})
 
-	return c.JSON(fiber.Map{"message": "Ujian berhasil dihentikan paksa"})
+	return SendSuccess(c, "Ujian berhasil dihentikan paksa", nil)
 }
 
 // UnblockSiswa membuka kembali akses ujian siswa
@@ -152,7 +152,7 @@ func UnblockSiswa(c *fiber.Ctx) error {
 
 	var peserta models.CBTPesertaUjian
 	if err := database.DB.Preload("Jadwal").First(&peserta, pesertaID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Peserta tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
 	}
 
 	// Security Check
@@ -172,7 +172,7 @@ func UnblockSiswa(c *fiber.Ctx) error {
 			"is_terblokir": false,
 			"waktu_login":  nil,
 		}).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal membuka blokir"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal membuka blokir")
 	}
 
 	// Log aktivitas
@@ -181,17 +181,18 @@ func UnblockSiswa(c *fiber.Ctx) error {
 		KeteranganLog:  "Blokir dibuka oleh Pengawas",
 	})
 
-	return c.JSON(fiber.Map{"message": "Blokir berhasil dibuka"})
+	return SendSuccess(c, "Blokir berhasil dibuka", nil)
 }
 
 // ResetSesiSiswa menghapus status login agar siswa bisa masuk kembali (misal jika PC crash)
+// BUG FIX: Sisa waktu dan status pengerjaan TIDAK BOLEH di-reset ke 0 di sini.
 func ResetSesiSiswa(c *fiber.Ctx) error {
 	id := c.Params("pesertaId")
 	pesertaID := utils.StringToUint(id)
 
 	var peserta models.CBTPesertaUjian
 	if err := database.DB.Preload("Jadwal").First(&peserta, pesertaID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Peserta tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
 	}
 
 	// Security Check
@@ -204,26 +205,90 @@ func ResetSesiSiswa(c *fiber.Ctx) error {
 		}
 	}
 
-	// Reset status agar bisa login ulang tanpa hambatan
-	err := database.DB.Model(&models.CBTPesertaUjian{}).Where("id = ?", pesertaID).Updates(map[string]interface{}{
-		"is_terblokir":        false,
-		"waktu_login":         nil,
-		"waktu_selesai_ujian": nil,
-		"sisa_waktu_detik":    0,
-		"status_ujian":        "Belum Mengerjakan",
-	}).Error
+	// Reset status login tanpa menghapus progres waktu/jawaban
+	err := database.DB.Model(&models.CBTPesertaUjian{}).Where("id = ?", pesertaID).
+		Select("is_terblokir", "waktu_login").
+		Updates(map[string]interface{}{
+			"is_terblokir": false,
+			"waktu_login":  nil,
+		}).Error
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal reset sesi"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal reset sesi login")
 	}
 
 	// Log aktivitas
 	database.DB.Create(&models.LogUjian{
 		PesertaUjianID: uint(pesertaID),
-		KeteranganLog:  "Sesi di-reset oleh Pengawas",
+		KeteranganLog:  "Sesi Login di-reset oleh Pengawas (Crash Recovery)",
 	})
 
-	return c.JSON(fiber.Map{"message": "Sesi berhasil di-reset"})
+	return SendSuccess(c, "Sesi login berhasil di-reset", nil)
+}
+
+// ResetUjianSiswa menghapus seluruh progres dan mengulang ujian dari nol
+func ResetUjianSiswa(c *fiber.Ctx) error {
+	id := c.Params("pesertaId")
+	pesertaID := utils.StringToUint(id)
+
+	var peserta models.CBTPesertaUjian
+	if err := database.DB.Preload("Jadwal").First(&peserta, pesertaID).Error; err != nil {
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
+	}
+
+	// Security Check
+	role := GetUserRole(c)
+	if role == "guru" {
+		userID := GetUserID(c)
+		guru, _ := GetGuruByUserID(userID)
+		if peserta.Jadwal.PengawasID == nil || *peserta.Jadwal.PengawasID != guru.ID {
+			return SendError(c, fiber.StatusForbidden, "Hanya pengawas jadwal ini yang boleh melakukan aksi ini")
+		}
+	}
+
+	// Jalankan dalam Transaksi: Hapus Jawaban + Reset Status Peserta
+	tx := database.DB.Begin()
+
+	// 1. Hapus Semua Jawaban (Gunakan SQL Eksplisit agar lebih handal)
+	if err := tx.Exec("DELETE FROM cbt_jawaban_siswas WHERE peserta_ujian_id = ?", pesertaID).Error; err != nil {
+		tx.Rollback()
+		return SendError(c, fiber.StatusInternalServerError, "Gagal menghapus data jawaban")
+	}
+
+	// 2. Hapus Log Pelanggaran (Gunakan SQL Eksplisit)
+	if err := tx.Exec("DELETE FROM log_ujians WHERE peserta_ujian_id = ?", pesertaID).Error; err != nil {
+		tx.Rollback()
+		return SendError(c, fiber.StatusInternalServerError, "Gagal menghapus log")
+	}
+
+	// 3. Reset Model Peserta
+	err := tx.Model(&models.CBTPesertaUjian{}).Where("id = ?", pesertaID).
+		Select("*").
+		Updates(map[string]interface{}{
+			"is_terblokir":        false,
+			"waktu_login":         nil,
+			"waktu_selesai_ujian": nil,
+			"sisa_waktu_detik":    peserta.Jadwal.DurasiMenit * 60,
+			"status_ujian":        "Belum Mengerjakan",
+			"nilai_pg":            0,
+			"nilai_essay":         0,
+			"total_nilai":         0,
+		}).Error
+
+	if err != nil {
+		tx.Rollback()
+		return SendError(c, fiber.StatusInternalServerError, "Gagal reset progres ujian")
+	}
+
+	// 4. Log Aktivitas Reset Total
+	tx.Create(&models.LogUjian{
+		PesertaUjianID: uint(pesertaID),
+		KeteranganLog:  "Ujian DI-RESET TOTAL oleh Pengawas",
+	})
+
+	tx.Commit()
+
+	return SendSuccess(c, "Ujian berhasil di-reset total", nil)
 }
 
 type RekapNilai struct {
@@ -348,7 +413,7 @@ func GetJawabanPeserta(c *fiber.Ctx) error {
 	// 1. Ambil info peserta & bank_soal_id
 	var peserta models.CBTPesertaUjian
 	if err := database.DB.Preload("Jadwal").First(&peserta, pesertaID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Peserta tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
 	}
 
 	// 2. Ambil semua soal dan join dengan jawaban (jika ada)
@@ -369,10 +434,10 @@ func GetJawabanPeserta(c *fiber.Ctx) error {
 		Scan(&results).Error
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengambil detail jawaban"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal mengambil detail jawaban")
 	}
 
-	return c.JSON(fiber.Map{"data": results})
+	return SendSuccess(c, "Berhasil mengambil detail jawaban", results)
 }
 
 // UpdateKoreksiEssay menyimpan hasil koreksi manual dari guru
@@ -385,7 +450,7 @@ func UpdateKoreksiEssay(c *fiber.Ctx) error {
 	}
 	var input []ItemKoreksi
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	tx := database.DB.Begin()
@@ -401,13 +466,13 @@ func UpdateKoreksiEssay(c *fiber.Ctx) error {
 				SoalID:         item.SoalID,
 			}).Error; err != nil {
 			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal akses data jawaban"})
+			return SendError(c, fiber.StatusInternalServerError, "Gagal akses data jawaban")
 		}
 
 		jawaban.Skor = item.Skor
 		if err := tx.Save(&jawaban).Error; err != nil {
 			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal update skor"})
+			return SendError(c, fiber.StatusInternalServerError, "Gagal update skor")
 		}
 		totalEssay += item.Skor
 	}
@@ -416,7 +481,7 @@ func UpdateKoreksiEssay(c *fiber.Ctx) error {
 	var peserta models.CBTPesertaUjian
 	if err := tx.First(&peserta, pesertaID).Error; err != nil {
 		tx.Rollback()
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Peserta tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
 	}
 
 	peserta.NilaiEssay = totalEssay
@@ -425,8 +490,7 @@ func UpdateKoreksiEssay(c *fiber.Ctx) error {
 
 	tx.Commit()
 
-	return c.JSON(fiber.Map{
-		"message":     "Koreksi berhasil disimpan",
+	return SendSuccess(c, "Koreksi berhasil disimpan", fiber.Map{
 		"nilai_essay": totalEssay,
 		"total_nilai": peserta.TotalNilai,
 	})
@@ -450,7 +514,7 @@ func GetAnalisisSoal(c *fiber.Ctx) error {
 	// 1. Ambil Jadwal & Soal
 	var jadwal models.CBTJadwalUjian
 	if err := database.DB.Preload("BankSoal").First(&jadwal, jadwalID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Jadwal tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Jadwal tidak ditemukan")
 	}
 
 	var soals []models.CBTSoal
@@ -523,5 +587,5 @@ func GetAnalisisSoal(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(analisis)
+	return SendSuccess(c, "Berhasil mengambil analisis soal", analisis)
 }

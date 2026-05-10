@@ -31,13 +31,13 @@ const handleLogin = async () => {
       throw new Error(data.error || 'Login gagal')
     }
 
-    // Simpan token ke Pinia
-    authStore.setAuth(data.token, data.user)
+    // Simpan token ke Pinia (Akses via data.data karena standardisasi API)
+    authStore.setAuth(data.data.token, data.data.user)
 
     // Redirect sesuai Role
-    if (data.user.role === 'admin') {
+    if (data.data.user.role === 'admin') {
       router.push({ name: 'AdminDashboard' })
-    } else if (data.user.role === 'guru') {
+    } else if (data.data.user.role === 'guru') {
       router.push({ name: 'GuruDashboard' })
     } else {
       router.push({ path: '/siswa' })

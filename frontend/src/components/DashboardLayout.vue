@@ -65,7 +65,7 @@ const toggleSidebar = () => {
       <!-- App Logo -->
       <div class="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
         <div>
-          <h2 class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300 tracking-tight">CBT SMP</h2>
+          <h2 class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300 tracking-tight">CBT System</h2>
           <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-[0.2em] font-black flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
             {{ userRole }} Workspace
@@ -241,7 +241,7 @@ const toggleSidebar = () => {
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
             </button>
             <h2 class="text-xl font-bold text-slate-800 hidden sm:block italic tracking-tight">
-              CBT <span class="text-blue-600">SMP</span>
+              CBT <span class="text-blue-600">Sytem</span>
             </h2>
           </div>
 

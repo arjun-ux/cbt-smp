@@ -11,13 +11,13 @@ import (
 func GetSesi(c *fiber.Ctx) error {
 	var data []models.MasterSesi
 	database.DB.Find(&data)
-	return c.JSON(fiber.Map{"data": data})
+	return SendSuccess(c, "Berhasil mengambil daftar sesi", data)
 }
 
 func CreateSesi(c *fiber.Ctx) error {
 	var data models.MasterSesi
 	if err := c.BodyParser(&data); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, 400, "Input tidak valid")
 	}
 
 	// Validasi Overlap Waktu
@@ -27,23 +27,23 @@ func CreateSesi(c *fiber.Ctx) error {
 		Count(&count)
 	
 	if count > 0 {
-		return c.Status(400).JSON(fiber.Map{"error": "Waktu sesi bentrok dengan sesi lain yang sudah ada"})
+		return SendError(c, 400, "Waktu sesi bentrok dengan sesi lain yang sudah ada")
 	}
 
 	database.DB.Create(&data)
-	return c.JSON(fiber.Map{"message": "Sesi berhasil dibuat", "data": data})
+	return SendSuccess(c, "Sesi berhasil dibuat", data)
 }
 
 func UpdateSesi(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var data models.MasterSesi
 	if err := database.DB.First(&data, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Data tidak ditemukan"})
+		return SendError(c, 404, "Data tidak ditemukan")
 	}
 	
 	var input models.MasterSesi
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, 400, "Input tidak valid")
 	}
 
 	// Validasi Overlap Waktu (Kecuali sesi itu sendiri)
@@ -54,7 +54,7 @@ func UpdateSesi(c *fiber.Ctx) error {
 		Count(&count)
 	
 	if count > 0 {
-		return c.Status(400).JSON(fiber.Map{"error": "Update gagal! Waktu sesi bentrok dengan sesi lain"})
+		return SendError(c, 400, "Update gagal! Waktu sesi bentrok dengan sesi lain")
 	}
 
 	// LOCKING: Cek apakah sesi sedang digunakan ujian aktif
@@ -64,7 +64,7 @@ func UpdateSesi(c *fiber.Ctx) error {
 		Count(&activeExamCount)
 
 	if activeExamCount > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Data sesi tidak dapat diubah karena sedang digunakan untuk ujian yang sedang berlangsung."})
+		return SendError(c, fiber.StatusForbidden, "Data sesi tidak dapat diubah karena sedang digunakan untuk ujian yang sedang berlangsung.")
 	}
 
 	data.NamaSesi = input.NamaSesi
@@ -72,7 +72,7 @@ func UpdateSesi(c *fiber.Ctx) error {
 	data.WaktuSelesai = input.WaktuSelesai
 	
 	database.DB.Save(&data)
-	return c.JSON(fiber.Map{"message": "Sesi berhasil diupdate"})
+	return SendSuccess(c, "Sesi berhasil diupdate", nil)
 }
 
 func DeleteSesi(c *fiber.Ctx) error {
@@ -83,8 +83,8 @@ func DeleteSesi(c *fiber.Ctx) error {
 		if strings.Contains(err.Error(), "FOREIGN KEY") {
 			errorMessage = "Sesi tidak dapat dihapus karena masih digunakan oleh data Siswa atau Jadwal Ujian."
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": errorMessage})
+		return SendError(c, fiber.StatusInternalServerError, errorMessage)
 	}
 	
-	return c.JSON(fiber.Map{"message": "Sesi berhasil dihapus"})
+	return SendSuccess(c, "Sesi berhasil dihapus", nil)
 }

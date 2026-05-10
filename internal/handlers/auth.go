@@ -18,9 +18,7 @@ type LoginInput struct {
 func Login(c *fiber.Ctx) error {
 	var input LoginInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Format request tidak valid",
-		})
+		return SendError(c, fiber.StatusBadRequest, "Format request tidak valid")
 	}
 
 	// Cari user di database
@@ -32,32 +30,24 @@ func Login(c *fiber.Ctx) error {
 		if err := database.DB.Where("nisn = ?", input.Username).First(&siswa).Error; err == nil {
 			database.DB.First(&user, siswa.UserID)
 		} else {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "NISN/Username atau Password salah",
-			})
+			return SendError(c, fiber.StatusUnauthorized, "NISN/Username atau Password salah")
 		}
 	}
 
 	// Pastikan akun aktif
 	if !user.IsActive {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Akun Anda tidak aktif, hubungi administrator",
-		})
+		return SendError(c, fiber.StatusForbidden, "Akun Anda tidak aktif, hubungi administrator")
 	}
 
 	// Verifikasi Password Hash
 	if !utils.CheckPasswordHash(input.Password, user.Password) {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Username atau Password salah",
-		})
+		return SendError(c, fiber.StatusUnauthorized, "Username atau Password salah")
 	}
 
 	// Generate JWT
 	token, err := utils.GenerateJWT(user.ID, user.Username, user.Role)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Gagal membuat sesi login",
-		})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal membuat sesi login")
 	}
 
 	// (Opsional) Catat log sistem jika login berhasil
@@ -106,14 +96,13 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	// Kembalikan token dan data user (tanpa password)
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Login berhasil",
-		"token":   token,
-		"user":     userData,
+	return SendSuccess(c, "Login berhasil", fiber.Map{
+		"token": token,
+		"user":  userData,
 	})
 }
 
 // Logout memproses penghentian sesi di server
 func Logout(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Berhasil logout"})
+	return SendSuccess(c, "Berhasil logout", nil)
 }

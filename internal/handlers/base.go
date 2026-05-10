@@ -40,10 +40,14 @@ func GetGuruByUserID(userID uint) (models.MasterGuru, error) {
 }
 
 // SendError mengirim response error standar
-func SendError(c *fiber.Ctx, status int, message string) error {
-	return c.Status(status).JSON(fiber.Map{
+func SendError(c *fiber.Ctx, status int, message string, code ...string) error {
+	resp := fiber.Map{
 		"error": message,
-	})
+	}
+	if len(code) > 0 {
+		resp["code"] = code[0]
+	}
+	return c.Status(status).JSON(resp)
 }
 
 // SendSuccess mengirim response sukses standar

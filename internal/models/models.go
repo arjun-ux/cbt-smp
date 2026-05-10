@@ -44,12 +44,12 @@ type MasterSiswa struct {
 	User        User        `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"user"`
 	NISN        string      `gorm:"type:varchar(20);uniqueIndex" json:"nisn"`
 	NamaLengkap string      `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
-	KelasID     *uint        `gorm:"index" json:"kelas_id"`
-	Kelas       MasterKelas  `gorm:"foreignKey:KelasID;constraint:OnDelete:SET NULL;" json:"kelas"`
-	RuangID     *uint        `gorm:"index" json:"ruang_id"`
-	Ruang       MasterRuang  `gorm:"foreignKey:RuangID;constraint:OnDelete:SET NULL;" json:"ruang"`
-	SesiID         *uint        `gorm:"index" json:"sesi_id"`
-	Sesi           MasterSesi   `gorm:"foreignKey:SesiID;constraint:OnDelete:SET NULL;" json:"sesi"`
+	KelasID     *uint       `gorm:"index" json:"kelas_id"`
+	Kelas       MasterKelas `gorm:"foreignKey:KelasID;constraint:OnDelete:SET NULL;" json:"kelas"`
+	RuangID     *uint       `gorm:"index" json:"ruang_id"`
+	Ruang       MasterRuang `gorm:"foreignKey:RuangID;constraint:OnDelete:SET NULL;" json:"ruang"`
+	SesiID      *uint       `gorm:"index" json:"sesi_id"`
+	Sesi        MasterSesi  `gorm:"foreignKey:SesiID;constraint:OnDelete:SET NULL;" json:"sesi"`
 }
 
 // Master Guru
@@ -106,19 +106,19 @@ type CBTJadwalUjian struct {
 	ID           uint        `gorm:"primaryKey" json:"id"`
 	BankSoalID   uint        `gorm:"index" json:"bank_soal_id"`
 	BankSoal     CBTBankSoal `gorm:"foreignKey:BankSoalID" json:"bank_soal"`
-	TanggalUjian string           `gorm:"type:date" json:"tanggal_ujian"`
-	WaktuMulai   string           `gorm:"type:time" json:"waktu_mulai"`
-	DurasiMenit  int              `json:"durasi_menit"`
-	RuangID      *uint             `json:"ruang_id"`
-	Ruang        MasterRuang      `gorm:"foreignKey:RuangID" json:"ruang"`
-	SesiID       *uint             `json:"sesi_id"`
-	Sesi         MasterSesi       `gorm:"foreignKey:SesiID" json:"sesi"`
-	PengawasID   *uint            `json:"pengawas_id"`
-	Pengawas     MasterGuru       `gorm:"foreignKey:PengawasID" json:"pengawas"`
-	AcakSoal     bool             `gorm:"default:false" json:"acak_soal"`
-	AcakJawaban   bool             `gorm:"default:false" json:"acak_jawaban"`
-	TokenUjian   string           `gorm:"type:varchar(10)" json:"token_ujian"`
-	Status       string           `gorm:"type:varchar(20);default:'Belum Mulai'" json:"status"`
+	TanggalUjian string      `gorm:"type:date" json:"tanggal_ujian"`
+	WaktuMulai   string      `gorm:"type:time" json:"waktu_mulai"`
+	DurasiMenit  int         `json:"durasi_menit"`
+	RuangID      *uint       `json:"ruang_id"`
+	Ruang        MasterRuang `gorm:"foreignKey:RuangID" json:"ruang"`
+	SesiID       *uint       `json:"sesi_id"`
+	Sesi         MasterSesi  `gorm:"foreignKey:SesiID" json:"sesi"`
+	PengawasID   *uint       `json:"pengawas_id"`
+	Pengawas     MasterGuru  `gorm:"foreignKey:PengawasID" json:"pengawas"`
+	AcakSoal     bool        `gorm:"default:false" json:"acak_soal"`
+	AcakJawaban  bool        `gorm:"default:false" json:"acak_jawaban"`
+	TokenUjian   string      `gorm:"type:varchar(10)" json:"token_ujian"`
+	Status       string      `gorm:"type:varchar(20);default:'Belum Mulai'" json:"status"`
 }
 
 // CBT Peserta Ujian (Siswa yang mengikuti jadwal)

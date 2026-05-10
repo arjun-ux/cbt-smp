@@ -20,25 +20,23 @@ func GetAdmins(c *fiber.Ctx) error {
 	var admins []models.User
 	database.DB.Where("role = ?", "admin").Find(&admins)
 
-	return c.JSON(fiber.Map{
-		"data": admins,
-	})
+	return SendSuccess(c, "Daftar admin berhasil diambil", admins)
 }
 
 // CreateAdmin menambah admin baru
 func CreateAdmin(c *fiber.Ctx) error {
 	var input AdminInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	if input.Username == "" || input.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username dan Password wajib diisi"})
+		return SendError(c, fiber.StatusBadRequest, "Username dan Password wajib diisi")
 	}
 
 	hash, err := utils.HashPassword(input.Password)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal enkripsi password"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal enkripsi password")
 	}
 
 	newAdmin := models.User{
@@ -49,10 +47,10 @@ func CreateAdmin(c *fiber.Ctx) error {
 	}
 
 	if err := database.DB.Create(&newAdmin).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal simpan admin (Username mungkin sudah ada)"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal simpan admin (Username mungkin sudah ada)")
 	}
 
-	return c.JSON(fiber.Map{"message": "Admin berhasil ditambahkan"})
+	return SendSuccess(c, "Admin berhasil ditambahkan", nil)
 }
 
 // UpdateAdmin mengubah password atau status admin
@@ -60,12 +58,12 @@ func UpdateAdmin(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var input AdminInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	var admin models.User
 	if err := database.DB.Where("id = ? AND role = ?", id, "admin").First(&admin).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Admin tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Admin tidak ditemukan")
 	}
 
 	if input.Username != "" {
@@ -75,7 +73,7 @@ func UpdateAdmin(c *fiber.Ctx) error {
 	if input.Password != "" {
 		hash, err := utils.HashPassword(input.Password)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal enkripsi password"})
+			return SendError(c, fiber.StatusInternalServerError, "Gagal enkripsi password")
 		}
 		admin.Password = hash
 	}
@@ -83,10 +81,10 @@ func UpdateAdmin(c *fiber.Ctx) error {
 	admin.IsActive = input.IsActive
 
 	if err := database.DB.Save(&admin).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal memperbarui admin"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal memperbarui admin")
 	}
 
-	return c.JSON(fiber.Map{"message": "Admin berhasil diperbarui"})
+	return SendSuccess(c, "Admin berhasil diperbarui", nil)
 }
 
 // DeleteAdmin menghapus admin
@@ -95,20 +93,20 @@ func DeleteAdmin(c *fiber.Ctx) error {
 	
 	var admin models.User
 	if err := database.DB.Where("id = ? AND role = ?", id, "admin").First(&admin).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Admin tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Admin tidak ditemukan")
 	}
 
 	if err := database.DB.Delete(&admin).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal menghapus admin"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal menghapus admin")
 	}
 
-	return c.JSON(fiber.Map{"message": "Admin berhasil dihapus"})
+	return SendSuccess(c, "Admin berhasil dihapus", nil)
 }
 // MigrateBase64Images menyisir seluruh soal dan memindahkan base64 ke file fisik
 func MigrateBase64Images(c *fiber.Ctx) error {
 	var soals []models.CBTSoal
 	if err := database.DB.Find(&soals).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengambil data soal"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal mengambil data soal")
 	}
 
 	count := 0
@@ -132,10 +130,7 @@ func MigrateBase64Images(c *fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Migrasi selesai",
-		"data": fiber.Map{
-			"total_soal_dibersihkan": count,
-		},
+	return SendSuccess(c, "Migrasi selesai", fiber.Map{
+		"total_soal_dibersihkan": count,
 	})
 }

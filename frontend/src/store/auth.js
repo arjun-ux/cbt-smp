@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useExamStore } from './exam'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -13,10 +14,14 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem('user', JSON.stringify(user))
     },
     logout() {
+      const examStore = useExamStore()
       this.token = ''
       this.user = null
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      
+      // Bersihkan data ujian dari memori saat logout
+      examStore.clearStore()
     }
   }
 })

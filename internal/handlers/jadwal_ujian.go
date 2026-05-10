@@ -18,7 +18,7 @@ type JadwalInput struct {
 	RuangID      uint   `json:"ruang_id"`
 	SesiID       uint   `json:"sesi_id"`
 	AcakSoal     bool   `json:"acak_soal"`
-	AcakJawaban   bool   `json:"acak_jawaban"`
+	AcakJawaban  bool   `json:"acak_jawaban"`
 	Status       string `json:"status"`
 }
 
@@ -69,10 +69,10 @@ func GetJadwal(c *fiber.Ctx) error {
 		guru, _ := GetGuruByUserID(userID)
 		var bs models.CBTBankSoal
 		database.DB.First(&bs, jadwal.BankSoalID)
-		
+
 		isOwner := bs.GuruID != nil && *bs.GuruID == guru.ID
 		isPengawas := jadwal.PengawasID != nil && *jadwal.PengawasID == guru.ID
-		
+
 		if !isOwner && !isPengawas {
 			return SendError(c, fiber.StatusForbidden, "Akses ditolak: Anda bukan pemilik soal atau pengawas jadwal ini")
 		}
@@ -135,8 +135,12 @@ func CreateJadwal(c *fiber.Ctx) error {
 	token := generateToken(5)
 
 	var ruangID, sesiID *uint
-	if input.RuangID > 0 { ruangID = &input.RuangID }
-	if input.SesiID > 0 { sesiID = &input.SesiID }
+	if input.RuangID > 0 {
+		ruangID = &input.RuangID
+	}
+	if input.SesiID > 0 {
+		sesiID = &input.SesiID
+	}
 
 	newJadwal := models.CBTJadwalUjian{
 		BankSoalID:   input.BankSoalID,
@@ -146,7 +150,7 @@ func CreateJadwal(c *fiber.Ctx) error {
 		RuangID:      ruangID,
 		SesiID:       sesiID,
 		AcakSoal:     input.AcakSoal,
-		AcakJawaban:   input.AcakJawaban,
+		AcakJawaban:  input.AcakJawaban,
 		TokenUjian:   token,
 		Status:       "Belum Mulai",
 	}
@@ -190,8 +194,12 @@ func UpdateJadwal(c *fiber.Ctx) error {
 	}
 
 	var ruangID, sesiID *uint
-	if input.RuangID > 0 { ruangID = &input.RuangID }
-	if input.SesiID > 0 { sesiID = &input.SesiID }
+	if input.RuangID > 0 {
+		ruangID = &input.RuangID
+	}
+	if input.SesiID > 0 {
+		sesiID = &input.SesiID
+	}
 
 	jadwal.BankSoalID = input.BankSoalID
 	jadwal.TanggalUjian = input.TanggalUjian
@@ -205,8 +213,49 @@ func UpdateJadwal(c *fiber.Ctx) error {
 		jadwal.Status = input.Status
 	}
 
-	if err := database.DB.Save(&jadwal).Error; err != nil {
-		return SendError(c, fiber.StatusInternalServerError, "Gagal mengupdate jadwal")
+	// Gunakan transaksi untuk menjamin integritas data saat force-submit masal
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. Simpan perubahan Jadwal
+		if err := tx.Save(&jadwal).Error; err != nil {
+			return err
+		}
+
+		// 2. Jika status diubah menjadi 'Selesai', lakukan Force Submit otomatis untuk semua siswa
+		if input.Status == "Selesai" {
+			var pesertaBelumSelesai []models.CBTPesertaUjian
+			// Ambil hanya peserta yang tidak terblokir untuk menghindari tabrakan logika/database
+			if err := tx.Where("jadwal_id = ? AND status_ujian = ? AND is_terblokir = 0", jadwal.ID, "Sedang Mengerjakan").Find(&pesertaBelumSelesai).Error; err != nil {
+				return err
+			}
+
+			now := time.Now()
+			for _, p := range pesertaBelumSelesai {
+				// Hitung Nilai (Helper) - Sekarang menggunakan transaksi 'tx' yang sama
+				nilaiPG := HitungNilaiPG(tx, p.ID, jadwal.BankSoalID)
+
+				// Update data peserta
+				if err := tx.Model(&p).Updates(map[string]interface{}{
+					"status_ujian":        "Selesai",
+					"waktu_selesai_ujian": &now,
+					"nilai_pg":            nilaiPG,
+					"total_nilai":         nilaiPG + p.NilaiEssay,
+				}).Error; err != nil {
+					return err
+				}
+
+				// Catat Log System
+				tx.Create(&models.LogUjian{
+					PesertaUjianID: p.ID,
+					KeteranganLog:  "Force Submit Otomatis (Jadwal Diakhiri oleh Admin/Guru)",
+				})
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return SendError(c, fiber.StatusInternalServerError, "Gagal mengupdate jadwal dan memproses finalisasi siswa: "+err.Error())
 	}
 
 	return SendSuccess(c, "Jadwal berhasil diupdate", jadwal)
@@ -255,7 +304,7 @@ func DeleteJadwal(c *fiber.Ctx) error {
 // ArchiveJadwalResults memindahkan nilai dari transaksi ke rekap permanen
 func ArchiveJadwalResults(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	var jadwal models.CBTJadwalUjian
 	if err := database.DB.Preload("BankSoal.Mapel").First(&jadwal, id).Error; err != nil {
 		return SendError(c, 404, "Jadwal tidak ditemukan")
@@ -278,7 +327,7 @@ func ArchiveJadwalResults(c *fiber.Ctx) error {
 			// Cek apakah sudah ada rekap
 			var existing models.CBTRekapNilai
 			if err := tx.Where("jadwal_id = ? AND nisn = ?", id, p.Siswa.NISN).First(&existing).Error; err == nil {
-				continue 
+				continue
 			}
 
 			rekap := models.CBTRekapNilai{
@@ -364,7 +413,7 @@ func generateToken(n int) string {
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	seed := rand.NewSource(time.Now().UnixNano())
 	random := rand.New(seed)
-	
+
 	b := make([]byte, n)
 	for i := range b {
 		b[i] = charset[random.Intn(len(charset))]

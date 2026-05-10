@@ -22,7 +22,7 @@ func GetSiswaJadwal(c *fiber.Ctx) error {
 
 	var siswa models.MasterSiswa
 	if err := database.DB.Preload("Kelas").Where("user_id = ?", userID).First(&siswa).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Data siswa tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Data siswa tidak ditemukan")
 	}
 
 	var jadwals []models.CBTJadwalUjian
@@ -37,7 +37,7 @@ func GetSiswaJadwal(c *fiber.Ctx) error {
 		Find(&jadwals).Error
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengambil jadwal"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal mengambil jadwal")
 	}
 
 	// Cek status pengerjaan untuk setiap jadwal
@@ -62,8 +62,8 @@ func GetSiswaJadwal(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"data":  results,
+	return SendSuccess(c, "Berhasil mengambil jadwal", fiber.Map{
+		"items": results,
 		"siswa": siswa,
 	})
 }
@@ -77,7 +77,7 @@ type StudentLoginRequest struct {
 func ValidateExam(c *fiber.Ctx) error {
 	var input StudentLoginRequest
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
 	// 1. Cek Jadwal berdasarkan Token (Case Insensitive & Hapus Spasi)
@@ -91,15 +91,15 @@ func ValidateExam(c *fiber.Ctx) error {
 	}
 
 	if err := query.First(&jadwal).Error; err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Token ujian tidak valid untuk jadwal ini"})
+		return SendError(c, fiber.StatusBadRequest, "Token ujian tidak valid untuk jadwal ini")
 	}
 
 	// 2. Cek Status Jadwal
 	if jadwal.Status == "Belum Mulai" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Ujian belum dimulai"})
+		return SendError(c, fiber.StatusBadRequest, "Ujian belum dimulai")
 	}
 	if jadwal.Status == "Selesai" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Ujian telah berakhir"})
+		return SendError(c, fiber.StatusBadRequest, "Ujian telah berakhir")
 	}
 
 	// 3. Cek Siswa (Utamakan Sesi Login JWT)
@@ -116,27 +116,27 @@ func ValidateExam(c *fiber.Ctx) error {
 	} else {
 		// Fallback cara lama (jika NISN diisi di halaman depan)
 		if err := database.DB.Preload("User").Preload("Kelas").Preload("Ruang").Preload("Sesi").Where("nisn = ?", input.NISN).First(&siswa).Error; err != nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "NISN tidak terdaftar"})
+			return SendError(c, fiber.StatusNotFound, "NISN tidak terdaftar")
 		}
 	}
 
 	if siswa.ID == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Data siswa tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Data siswa tidak ditemukan")
 	}
 
 	// 4. Validasi Tingkat Kelas
 	if siswa.Kelas.Tingkat != jadwal.BankSoal.TingkatKelas {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Tingkat kelas tidak sesuai dengan bank soal"})
+		return SendError(c, fiber.StatusForbidden, "Tingkat kelas tidak sesuai dengan bank soal")
 	}
 
 	// 5. Validasi Sesi (Hanya jika jadwal memiliki Sesi yang ditentukan)
 	if jadwal.SesiID != nil && (siswa.SesiID == nil || *siswa.SesiID != *jadwal.SesiID) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Sesi ujian Anda tidak sesuai dengan jadwal ini"})
+		return SendError(c, fiber.StatusForbidden, "Sesi ujian Anda tidak sesuai dengan jadwal ini")
 	}
 
 	// 6. Validasi Ruang (Hanya jika jadwal memiliki Ruang yang ditentukan)
 	if jadwal.RuangID != nil && (siswa.RuangID == nil || *siswa.RuangID != *jadwal.RuangID) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Lokasi/Ruang ujian Anda tidak sesuai dengan jadwal ini"})
+		return SendError(c, fiber.StatusForbidden, "Lokasi/Ruang ujian Anda tidak sesuai dengan jadwal ini")
 	}
 
 	// 7. Kelola Record Peserta Ujian
@@ -157,12 +157,10 @@ func ValidateExam(c *fiber.Ctx) error {
 	} else {
 		// 7a. Jika terblokir, izinkan lewat agar bisa melihat layar blokir
 		if !peserta.IsTerblokir {
-		// CEK SESI AKTIF (Cara Lama)
-		if peserta.WaktuLogin != nil {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Anda sudah login di perangkat lain. Silakan hubungi pengawas untuk Reset Sesi.",
-			})
-		}
+			// CEK SESI AKTIF (Cara Lama)
+			if peserta.WaktuLogin != nil {
+				return SendError(c, fiber.StatusForbidden, "Anda sudah login di perangkat lain. Silakan hubungi pengawas untuk Reset Sesi.")
+			}
 		}
 
 		// Update status agar sedang mengerjakan
@@ -173,24 +171,28 @@ func ValidateExam(c *fiber.Ctx) error {
 
 		// Cek jika sudah selesai secara permanen
 		if peserta.StatusUjian == "Selesai" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Anda sudah menyelesaikan ujian ini"})
+			return SendError(c, fiber.StatusForbidden, "Anda sudah menyelesaikan ujian ini")
 		}
+	}
+
+	isNewSession := false
+	if err != nil || peserta.StatusUjian == "Belum Mengerjakan" {
+		isNewSession = true
 	}
 
 	// 8. Generate Token
 	token, err := utils.GenerateJWT(siswa.User.ID, siswa.NamaLengkap, "siswa")
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal generate token"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal generate token")
 	}
 
-	return c.JSON(fiber.Map{
-		"token": token,
-		"data": fiber.Map{
-			"peserta_id": peserta.ID,
-			"siswa":      siswa,
-			"jadwal":     jadwal,
-			"sisa_waktu": peserta.SisaWaktuDetik,
-		},
+	return SendSuccess(c, "Login Berhasil", fiber.Map{
+		"token":          token,
+		"peserta_id":     peserta.ID,
+		"siswa":          siswa,
+		"jadwal":         jadwal,
+		"sisa_waktu":     peserta.SisaWaktuDetik,
+		"is_new_session": isNewSession,
 	})
 }
 
@@ -200,7 +202,7 @@ func GetSoalUjian(c *fiber.Ctx) error {
 
 	var jadwal models.CBTJadwalUjian
 	if err := database.DB.First(&jadwal, jadwalID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Jadwal tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Jadwal tidak ditemukan")
 	}
 
 	var soals []models.CBTSoal
@@ -244,7 +246,7 @@ func GetSoalUjian(c *fiber.Ctx) error {
 	}
 	var peserta models.CBTPesertaUjian
 	if err := database.DB.Where("jadwal_id = ? AND siswa_id = (SELECT id FROM master_siswas WHERE user_id = ?)", utils.StringToUint(jadwalID), userID).First(&peserta).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Data peserta tidak ditemukan. Pastikan Anda sudah login melalui halaman depan."})
+		return SendError(c, fiber.StatusNotFound, "Data peserta tidak ditemukan. Pastikan Anda sudah login melalui halaman depan.")
 	}
 
 	// Sisa waktu dari database
@@ -262,11 +264,12 @@ func GetSoalUjian(c *fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(fiber.Map{
-		"data":             results,
+	return SendSuccess(c, "Berhasil mengambil soal", fiber.Map{
+		"items":            results,
 		"sisa_waktu":       sisaWaktu,
 		"peserta_id":       peserta.ID,
 		"is_terblokir":     peserta.IsTerblokir,
+		"status_ujian":     peserta.StatusUjian,
 		"acak_jawaban":     jadwal.AcakJawaban,
 		"existing_answers": existingAnswers,
 	})
@@ -284,12 +287,12 @@ func GetSiswaStatus(c *fiber.Ctx) error {
 
 	var peserta models.CBTPesertaUjian
 	if err := database.DB.Where("jadwal_id = ? AND siswa_id = (SELECT id FROM master_siswas WHERE user_id = ?)", utils.StringToUint(jadwalID), userID).First(&peserta).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Data peserta tidak ditemukan"})
+		return SendError(c, fiber.StatusNotFound, "Data peserta tidak ditemukan")
 	}
 
 	sisaWaktu := peserta.SisaWaktuDetik
 
-	return c.JSON(fiber.Map{
+	return SendSuccess(c, "Status berhasil diambil", fiber.Map{
 		"is_terblokir": peserta.IsTerblokir,
 		"sisa_waktu":   sisaWaktu,
 		"status_ujian": peserta.StatusUjian,
@@ -312,33 +315,36 @@ func SyncJawaban(c *fiber.Ctx) error {
 
 	var input JawabanBatchInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
 	}
 
-	// Cek Status Ujian
+	// Cek Status Ujian & Validasi Kepemilikan (IDOR Fix)
+	userID := GetUserID(c)
 	var peserta models.CBTPesertaUjian
-	if err := database.DB.First(&peserta, input.PesertaUjianID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Data peserta tidak ditemukan"})
+	err := database.DB.Where("id = ? AND siswa_id = (SELECT id FROM master_siswas WHERE user_id = ?)",
+		input.PesertaUjianID, userID).First(&peserta).Error
+
+	if err != nil {
+		return SendError(c, fiber.StatusForbidden, "Akses Ilegal: Anda tidak berhak mengakses sesi ini")
 	}
 
 	if peserta.StatusUjian == "Selesai" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Ujian telah berakhir atau dihentikan paksa",
-			"code":  "EXAM_FINISHED",
-		})
+		return SendError(c, fiber.StatusForbidden, "Ujian telah berakhir atau dihentikan paksa", "EXAM_FINISHED")
 	}
 
 	if peserta.IsTerblokir {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Akses ujian Anda diblokir karena pelanggaran. Hubungi pengawas.",
-			"code":  "ACCOUNT_BLOCKED",
-		})
+		return SendError(c, fiber.StatusForbidden, "Akses ujian Anda diblokir karena pelanggaran. Hubungi pengawas.", "ACCOUNT_BLOCKED")
 	}
 
 	// Gunakan Transaksi untuk Batch Save
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		// Update Sisa Waktu
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		// Update Sisa Waktu (Timer Hardening)
 		if input.SisaWaktu > 0 {
+			// Cegah manipulasi penambahan waktu: sisa waktu baru tidak boleh > sisa waktu di DB
+			if input.SisaWaktu > peserta.SisaWaktuDetik && peserta.SisaWaktuDetik > 0 {
+				input.SisaWaktu = peserta.SisaWaktuDetik // Paksa gunakan nilai terkecil/aman
+			}
+
 			if err := tx.Model(&peserta).Update("sisa_waktu_detik", input.SisaWaktu).Error; err != nil {
 				return err
 			}
@@ -373,11 +379,10 @@ func SyncJawaban(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal sinkronisasi jawaban"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal sinkronisasi jawaban")
 	}
 
-	return c.JSON(fiber.Map{
-		"message":    "Sinkronisasi berhasil",
+	return SendSuccess(c, "Sinkronisasi berhasil", fiber.Map{
 		"sisa_waktu": input.SisaWaktu,
 		"synced":     len(input.Items),
 	})
@@ -392,7 +397,15 @@ func LogSiswa(c *fiber.Ctx) error {
 
 	var input LogInput
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
+	}
+
+	// Validasi Kepemilikan (IDOR Fix)
+	userID := GetUserID(c)
+	var pesertaCheck models.CBTPesertaUjian
+	if err := database.DB.Where("id = ? AND siswa_id = (SELECT id FROM master_siswas WHERE user_id = ?)",
+		input.PesertaUjianID, userID).First(&pesertaCheck).Error; err != nil {
+		return SendError(c, fiber.StatusForbidden, "Akses Ilegal")
 	}
 
 	newLog := models.LogUjian{
@@ -412,40 +425,25 @@ func LogSiswa(c *fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(fiber.Map{"status": "logged"})
+	return SendSuccess(c, "Logged", nil)
 }
 
 // HitungNilaiPG adalah helper untuk menghitung skor PG siswa
-func HitungNilaiPG(pesertaID uint, bankSoalID uint) float64 {
-	var soals []models.CBTSoal
-	database.DB.Where("bank_soal_id = ? AND jenis_soal = 'PG'", bankSoalID).Find(&soals)
+func HitungNilaiPG(db *gorm.DB, pesertaID uint, bankSoalID uint) float64 {
+	// 1. Update semua skor jawaban siswa sekaligus dalam satu query SQL (Sangat Cepat)
+	db.Exec(`
+		UPDATE cbt_jawaban_siswas 
+		SET skor = CASE 
+			WHEN jawaban_siswa = (SELECT kunci_jawaban FROM cbt_soals WHERE id = soal_id) 
+			THEN (SELECT bobot_nilai FROM cbt_soals WHERE id = soal_id) 
+			ELSE 0 
+		END 
+		WHERE peserta_ujian_id = ?`, pesertaID)
 
-	var jawabans []models.CBTJawabanSiswa
-	database.DB.Where("peserta_ujian_id = ?", pesertaID).Find(&jawabans)
+	// 2. Ambil total skor yang sudah diupdate
+	var totalNilai float64
+	db.Raw("SELECT COALESCE(SUM(skor), 0) FROM cbt_jawaban_siswas WHERE peserta_ujian_id = ?", pesertaID).Scan(&totalNilai)
 
-	mapJawaban := make(map[uint]string)
-	for _, j := range jawabans {
-		mapJawaban[j.SoalID] = j.JawabanSiswa
-	}
-
-	var totalNilai float64 = 0
-	database.DB.Transaction(func(tx *gorm.DB) error {
-		for _, soal := range soals {
-			jawabanSiswa := mapJawaban[soal.ID]
-			if jawabanSiswa == soal.KunciJawaban {
-				totalNilai += soal.BobotNilai
-				tx.Model(&models.CBTJawabanSiswa{}).
-					Where("peserta_ujian_id = ? AND soal_id = ?", pesertaID, soal.ID).
-					Update("skor", soal.BobotNilai)
-			} else {
-				tx.Model(&models.CBTJawabanSiswa{}).
-					Where("peserta_ujian_id = ? AND soal_id = ?", pesertaID, soal.ID).
-					Update("skor", 0)
-			}
-		}
-		return nil
-	})
-	
 	return totalNilai
 }
 
@@ -456,12 +454,15 @@ func SubmitUjian(c *fiber.Ctx) error {
 	now := time.Now()
 
 	var peserta models.CBTPesertaUjian
-	if err := database.DB.Preload("Jadwal").Where("id = ?", pesertaID).First(&peserta).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Data peserta tidak ditemukan"})
+	userID := GetUserID(c)
+	// Validasi Kepemilikan (IDOR Fix)
+	if err := database.DB.Preload("Jadwal").Where("id = ? AND siswa_id = (SELECT id FROM master_siswas WHERE user_id = ?)",
+		pesertaID, userID).First(&peserta).Error; err != nil {
+		return SendError(c, fiber.StatusForbidden, "Akses Ilegal: Data peserta tidak valid")
 	}
 
 	// Hitung Nilai via Helper
-	totalNilaiPG := HitungNilaiPG(peserta.ID, peserta.Jadwal.BankSoalID)
+	totalNilaiPG := HitungNilaiPG(database.DB, peserta.ID, peserta.Jadwal.BankSoalID)
 
 	// 5. Update Status dan Nilai
 	err := database.DB.Model(&peserta).Updates(map[string]interface{}{
@@ -472,7 +473,7 @@ func SubmitUjian(c *fiber.Ctx) error {
 	}).Error
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal menyimpan hasil ujian"})
+		return SendError(c, fiber.StatusInternalServerError, "Gagal menyimpan hasil ujian")
 	}
 
 	// 6. Catat Log Selesai
@@ -482,8 +483,7 @@ func SubmitUjian(c *fiber.Ctx) error {
 	}
 	database.DB.Create(&logSelesai)
 
-	return c.JSON(fiber.Map{
-		"message":  "Ujian berhasil diselesaikan",
+	return SendSuccess(c, "Ujian berhasil diselesaikan", fiber.Map{
 		"nilai_pg": totalNilaiPG,
 	})
 }

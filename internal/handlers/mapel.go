@@ -11,27 +11,27 @@ import (
 func GetMapel(c *fiber.Ctx) error {
 	var data []models.MasterMapel
 	database.DB.Find(&data)
-	return c.JSON(fiber.Map{"data": data})
+	return SendSuccess(c, "Berhasil mengambil daftar mapel", data)
 }
 
 func CreateMapel(c *fiber.Ctx) error {
 	var data models.MasterMapel
 	if err := c.BodyParser(&data); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Input tidak valid"})
+		return SendError(c, 400, "Input tidak valid")
 	}
 	database.DB.Create(&data)
-	return c.JSON(fiber.Map{"message": "Mapel berhasil dibuat", "data": data})
+	return SendSuccess(c, "Mapel berhasil dibuat", data)
 }
 
 func UpdateMapel(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var data models.MasterMapel
 	if err := database.DB.First(&data, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Data tidak ditemukan"})
+		return SendError(c, 404, "Data tidak ditemukan")
 	}
 	c.BodyParser(&data)
 	database.DB.Save(&data)
-	return c.JSON(fiber.Map{"message": "Mapel berhasil diupdate"})
+	return SendSuccess(c, "Mapel berhasil diupdate", nil)
 }
 
 func DeleteMapel(c *fiber.Ctx) error {
@@ -42,8 +42,8 @@ func DeleteMapel(c *fiber.Ctx) error {
 		if strings.Contains(err.Error(), "FOREIGN KEY") {
 			errorMessage = "Mata Pelajaran tidak dapat dihapus karena masih terikat dengan Bank Soal atau Jadwal Ujian."
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": errorMessage})
+		return SendError(c, fiber.StatusInternalServerError, errorMessage)
 	}
 	
-	return c.JSON(fiber.Map{"message": "Mapel berhasil dihapus"})
+	return SendSuccess(c, "Mapel berhasil dihapus", nil)
 }
