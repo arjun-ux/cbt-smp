@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GetSiswaJadwal mengambil daftar jadwal ujian untuk dashboard siswa
@@ -350,29 +351,24 @@ func SyncJawaban(c *fiber.Ctx) error {
 			}
 		}
 
-		for _, item := range input.Items {
-			var jawaban models.CBTJawabanSiswa
-			res := tx.Where("peserta_ujian_id = ? AND soal_id = ?", input.PesertaUjianID, item.SoalID).Limit(1).Find(&jawaban)
-
-			if res.RowsAffected == 0 {
-				// Simpan Baru
-				newJawaban := models.CBTJawabanSiswa{
+		// BULK UPSERT: Menggunakan satu query untuk semua jawaban (Jauh lebih cepat dari looping)
+		if len(input.Items) > 0 {
+			var jawabanList []models.CBTJawabanSiswa
+			for _, item := range input.Items {
+				jawabanList = append(jawabanList, models.CBTJawabanSiswa{
 					PesertaUjianID: input.PesertaUjianID,
 					SoalID:         item.SoalID,
 					JawabanSiswa:   item.JawabanTeks,
 					RaguRagu:       item.RaguRagu,
-				}
-				if err := tx.Create(&newJawaban).Error; err != nil {
-					return err
-				}
-			} else {
-				// Update yang sudah ada
-				if err := tx.Model(&jawaban).Updates(map[string]interface{}{
-					"jawaban_siswa": item.JawabanTeks,
-					"ragu_ragu":     item.RaguRagu,
-				}).Error; err != nil {
-					return err
-				}
+				})
+			}
+
+			// Lakukan Bulk Insert dengan konflik update (Upsert)
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "peserta_ujian_id"}, {Name: "soal_id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"jawaban_siswa", "ragu_ragu"}),
+			}).Create(&jawabanList).Error; err != nil {
+				return err
 			}
 		}
 		return nil

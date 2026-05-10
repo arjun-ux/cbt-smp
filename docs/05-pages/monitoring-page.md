@@ -12,8 +12,10 @@
     - `GET /api/[role]/monitor/:jadwalId`: Polling data status peserta.
     - `POST /api/[role]/monitor/force-submit/:id`: Hentikan ujian siswa secara paksa.
     - `POST /api/[role]/monitor/unblock/:id`: Buka blokir siswa.
+    - `POST /api/[role]/monitor/block/:id`: Blokir siswa secara manual (Kicked out).
     - `POST /api/[role]/monitor/reset-sesi/:id`: Reset login siswa (Crash Recovery).
     - `POST /api/[role]/monitor/reset-ujian/:id`: Reset total progres ujian siswa.
+- **Manual Refresh**: Tombol "Refresh" untuk memperbarui data secara instan di luar siklus polling otomatis.
 - **Lifecycle**: `onMounted` memulai polling interval setiap 10 detik. `onUnmounted` membersihkan interval.
 
 ## Elemen UI & Aksi
@@ -24,8 +26,9 @@
 
 ### Tabel Monitor (Body)
 - **Progres Bar**: Visualisasi persentase soal yang sudah dijawab (`progres / total_soal`).
+- **Mulai (Waktu Login)**: Menampilkan jam tepat siswa mulai masuk ke halaman ujian (Format: HH:mm:ss).
 - **Badge Status**: 
-    - `TERBLOKIR`: Muncul dengan animasi pulse merah jika siswa melanggar (pindah tab).
+    - `TERBLOKIR`: Muncul jika siswa melanggar sistem atau **diblokir manual** oleh pengawas.
     - `Sedang Mengerjakan` / `Selesai`: Status dasar pengerjaan.
 
 ### Manajemen Aksi (Pencegahan Human Error)
@@ -33,6 +36,7 @@ Untuk meminimalisir kesalahan klik, aksi dibagi menjadi dua zona:
 
 #### 1. Zona Aman (Ikon Langsung)
 - **Buka Blokir (Ikon Gembok Orange)**: Mengizinkan siswa melanjutkan ujian jika terblokir.
+- **Blokir Manual (Ikon Gembok Merah)**: Menghentikan akses siswa secara paksa dan menghapus sesi login mereka (Kick).
 - **Reset Login (Ikon Pintu Biru)**: **PENTING!** Digunakan jika PC siswa crash/hang. Aksi ini hanya mengeluarkan sesi login agar siswa bisa masuk kembali **tanpa menghapus jawaban** dan **tanpa mereset waktu**.
 
 #### 2. Zona Berbahaya (Menu Dropdown Titik Tiga)

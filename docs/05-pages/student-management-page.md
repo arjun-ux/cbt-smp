@@ -12,11 +12,12 @@
     - `GET /api/admin/siswa`: Ambil list seluruh siswa.
     - `POST/PUT /api/admin/siswa`: Simpan/Update profil siswa.
     - `DELETE /api/admin/siswa/:id`: Hapus siswa.
-    - `PATCH /api/admin/siswa/:id/status`: Toggle aktif/nonaktif akun.
+    - `PATCH /api/admin/siswa/:id/status`: Toggle aktif/nonaktif akun (Tunggal).
+    - `PATCH /api/admin/siswa/bulk-status`: Update status aktif/nonaktif banyak siswa sekaligus.
     - `POST /api/admin/siswa/import`: Upload file CSV massal.
 - **State Lokal**:
     - `siswas`: Array data siswa.
-    - `selectedIds`: Array (Untuk hapus masal/bulk delete).
+    - `selectedIds`: Array (Untuk seleksi bulk action).
     - `previewData`: Array (Data pratinjau sebelum konfirmasi import CSV).
 
 ## Elemen UI & Aksi
@@ -36,21 +37,18 @@
 - **Database Effect**: Membuat record baru di tabel `users` dan `master_siswas`.
 
 ### Tombol "Status" (Badge Aktif/Nonaktif)
-- **Fungsi**: Mematikan akses login siswa tanpa menghapus datanya.
+- **Fungsi**: Mematikan akses login siswa tanpa menghapus datanya secara tunggal.
 - **Toggle**: Mengubah kolom `is_active` di tabel `users`.
 
-### Hapus Masal (Bulk Action)
-- **Fungsi**: Menghapus banyak siswa sekaligus yang telah dicentang pada checkbox.
-- **Flow**: Iterasi penghapusan via API untuk setiap ID yang dipilih.
+### Aksi Masal (Bulk Action)
+Muncul saat admin mencentang satu atau lebih siswa pada tabel:
+- **Hapus**: Menghapus banyak siswa sekaligus.
+- **Aktifkan**: Mengaktifkan kembali akses login banyak siswa terpilih.
+- **Nonaktifkan**: Mematikan akses login banyak siswa terpilih (Berguna untuk kelulusan/angkatan).
+- **Atur Ruang/Sesi (Bulk Plot)**: Menentukan lokasi ujian (Ruang) dan waktu (Sesi) untuk banyak siswa sekaligus.
 
-### Bulk Plot (Atur Ruang & Sesi Masal)
-- **Fungsi**: Menentukan lokasi ujian (Ruang) dan waktu (Sesi) untuk banyak siswa sekaligus. Sangat berguna untuk pembagian gelombang ujian.
-- **Flow**:
-    1. Admin mencentang satu atau lebih siswa pada tabel.
-    2. Klik tombol "Atur Ruang/Sesi" yang muncul di atas tabel.
-    3. Pilih Ruang dan Sesi yang diinginkan pada modal.
-    4. Klik "Simpan Perubahan".
-- **Database Effect**: Melakukan *batch update* pada kolom `ruang_id` dan `sesi_id` di tabel `master_siswas` menggunakan query `WHERE id IN (...)`.
+### Database Effect (Bulk Status)
+Melakukan *batch update* pada tabel `users` melalui relasi `user_id` di tabel `master_siswas` menggunakan subquery SQL yang efisien.
 
 ## Validasi & Pagination
 - **Search**: Pencarian lintas kolom (NISN, Nama, Kelas) menggunakan computed property.

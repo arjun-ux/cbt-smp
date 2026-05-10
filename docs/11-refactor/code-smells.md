@@ -24,9 +24,9 @@ Berikut adalah hasil audit kualitas kode pada sistem CBT, dikategorikan berdasar
 ## 4. Inefficient Database Queries (N+1 Problem)
 - **Severity**: 🟢 OPTIMIZED
 - **Status**: ✅ COMPLETED (BULK SQL OPTIMIZED)
-- **Alasan**: Fungsi penghitungan nilai kini menggunakan **Bulk SQL Update (`UPDATE ... CASE`)**. 
-- **Dampak**: Alih-alih melakukan loop tulis (write) sebanyak jumlah soal, sistem hanya melakukan satu perintah tulis per siswa. 
-- **Hasil**: Menghilangkan error *SQLITE_BUSY* saat pengakhiran jadwal masal dan menjaga performa tetap di kisaran milidetik meskipun banyak siswa diproses sekaligus.
+- **Alasan**: Fungsi penghitungan nilai kini menggunakan **Bulk SQL Update (`UPDATE ... CASE`)** dan fungsi simpan jawaban menggunakan **Atomic Bulk Upsert (`ON CONFLICT`)**.
+- **Dampak**: Menghilangkan ribuan operasi tulis (write) berulang dalam satu transaksi.
+- **Hasil**: Menghilangkan error *SQLITE_BUSY* secara total baik saat sinkronisasi jawaban masal maupun saat pengakhiran jadwal serentak.
 
 ## 5. Tight Coupling to GORM
 - **Severity**: 🔵 LOW

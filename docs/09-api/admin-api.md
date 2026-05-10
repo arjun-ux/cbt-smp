@@ -10,6 +10,8 @@ Endpoint untuk pengelolaan data master, konten ujian, dan laporan.
 - **Delete**: `DELETE /api/admin/siswa/:id`
 - **Import**: `POST /api/admin/siswa/import` (Upload CSV)
 - **Status Toggle**: `PATCH /api/admin/siswa/:id/status`
+- **Bulk Status Update**: `PATCH /api/admin/siswa/bulk-status`
+- **Bulk Plotting**: `POST /api/admin/siswa/bulk-plot`
 - **Side Effects**: Mengubah tabel `users` (untuk kredensial) dan `master_siswas` (untuk biodata).
 
 ### 1.2 Guru, Kelas, Mapel, Ruang, Sesi
@@ -57,7 +59,22 @@ Endpoint standar CRUD untuk data master sekolah.
 
 ---
 
-## 4. Scoring & Reporting
+## 4. Monitoring & Proctoring
+
+### 4.1 Real-time Monitoring
+- **Route**: `GET /api/[role]/monitor/:jadwalId`
+
+### 4.2 Proctors Actions
+- **Force Submit**: `POST /api/[role]/monitor/force-submit/:pesertaId`
+- **Unblock**: `POST /api/[role]/monitor/unblock/:pesertaId`
+- **Block Manual**: `POST /api/[role]/monitor/block/:pesertaId`
+    - *Side Effect*: Mengubah `is_terblokir=true` dan `waktu_login=null` (Force Kick).
+- **Reset Sesi**: `POST /api/[role]/monitor/reset-sesi/:pesertaId`
+- **Reset Ujian (Full)**: `POST /api/[role]/monitor/reset-ujian/:pesertaId`
+
+---
+
+## 5. Scoring & Reporting
 
 ### 4.1 Update Koreksi Essay
 - **Route**: `POST /api/[role]/monitor/koreksi/:pesertaId`

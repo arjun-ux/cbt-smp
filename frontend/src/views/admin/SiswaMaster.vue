@@ -226,6 +226,38 @@ const toggleStatus = async (item) => {
   }
 }
 
+const isBulkUpdating = ref(false)
+const bulkUpdateStatus = async (isActive) => {
+  if (selectedIds.value.length === 0) return
+  
+  isBulkUpdating.value = true
+  try {
+    const res = await fetch('/api/admin/siswa/bulk-status', {
+      method: 'PATCH',
+      headers: { 
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        siswa_ids: selectedIds.value,
+        is_active: isActive
+      })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      alertStore.showAlert(data.message, "success")
+      selectedIds.value = []
+      fetchSiswas()
+    } else {
+      alertStore.showAlert(data.error || "Gagal memperbarui status", "error")
+    }
+  } catch (error) {
+    alertStore.showAlert("Kesalahan koneksi", "error")
+  } finally {
+    isBulkUpdating.value = false
+  }
+}
+
 const toggleSelectAll = (e) => {
   if (e.target.checked) {
     selectedIds.value = paginatedSiswas.value.map(i => i.id)
@@ -408,7 +440,16 @@ onMounted(() => {
           <span class="text-sm font-semibold text-slate-600">{{ selectedIds.length }} item dipilih</span>
           <button @click="confirmDelete()" class="flex items-center gap-2 bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-rose-100 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            Hapus Masal
+            Hapus
+          </button>
+          <div class="h-8 w-px bg-slate-200 mx-1"></div>
+          <button @click="bulkUpdateStatus(true)" :disabled="isBulkUpdating" class="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-colors disabled:opacity-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Aktifkan
+          </button>
+          <button @click="bulkUpdateStatus(false)" :disabled="isBulkUpdating" class="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors disabled:opacity-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            Nonaktifkan
           </button>
         </div>
 

@@ -47,6 +47,7 @@ func SetupRoutes(router fiber.Router) {
 	admin.Put("/siswa/:id", handlers.UpdateSiswa)
 	admin.Delete("/siswa/:id", handlers.DeleteSiswa)
 	admin.Patch("/siswa/:id/status", handlers.ToggleSiswaStatus)
+	admin.Patch("/siswa/bulk-status", handlers.BulkUpdateSiswaStatus)
 	admin.Post("/siswa/bulk-plot", handlers.BulkPlotSiswa)
 
 	admin.Get("/kelas", handlers.GetKelas)
@@ -90,6 +91,7 @@ func SetupRoutes(router fiber.Router) {
 	admin.Get("/monitor/:jadwalId", handlers.GetMonitorUjian)
 	admin.Post("/monitor/force-submit/:pesertaId", handlers.ForceSubmit)
 	admin.Post("/monitor/unblock/:pesertaId", handlers.UnblockSiswa)
+	admin.Post("/monitor/block/:pesertaId", handlers.BlockSiswa)
 	admin.Post("/monitor/reset-sesi/:pesertaId", handlers.ResetSesiSiswa)
 	admin.Post("/monitor/reset-ujian/:pesertaId", handlers.ResetUjianSiswa)
 	admin.Get("/rekap-jadwal", handlers.GetLaporanJadwals)
@@ -124,6 +126,7 @@ func SetupRoutes(router fiber.Router) {
 	guru.Get("/monitor/:jadwalId", handlers.GetMonitorUjian)
 	guru.Post("/monitor/force-submit/:pesertaId", handlers.ForceSubmit)
 	guru.Post("/monitor/unblock/:pesertaId", handlers.UnblockSiswa)
+	guru.Post("/monitor/block/:pesertaId", handlers.BlockSiswa)
 	guru.Post("/monitor/reset-sesi/:pesertaId", handlers.ResetSesiSiswa)
 	guru.Post("/monitor/reset-ujian/:pesertaId", handlers.ResetUjianSiswa)
 	guru.Get("/pengawas-jadwal", handlers.GetPengawasJadwals)

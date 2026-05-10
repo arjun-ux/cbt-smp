@@ -357,3 +357,36 @@ func BulkPlotSiswa(c *fiber.Ctx) error {
 
 	return SendSuccess(c, "Berhasil memplot siswa secara massal", nil)
 }
+
+type BulkStatusInput struct {
+	SiswaIDs []uint `json:"siswa_ids" validate:"required"`
+	IsActive bool   `json:"is_active"`
+}
+
+// BulkUpdateSiswaStatus mengaktifkan atau menonaktifkan banyak akun siswa sekaligus
+func BulkUpdateSiswaStatus(c *fiber.Ctx) error {
+	var input BulkStatusInput
+	if err := c.BodyParser(&input); err != nil {
+		return SendError(c, fiber.StatusBadRequest, "Input tidak valid")
+	}
+
+	if len(input.SiswaIDs) == 0 {
+		return SendError(c, fiber.StatusBadRequest, "Pilih minimal satu siswa")
+	}
+
+	// Update tabel users melalui subquery agar efisien
+	err := database.DB.Model(&models.User{}).
+		Where("id IN (SELECT user_id FROM master_siswas WHERE id IN ?)", input.SiswaIDs).
+		Update("is_active", input.IsActive).Error
+
+	if err != nil {
+		return SendError(c, fiber.StatusInternalServerError, "Gagal memperbarui status secara masal")
+	}
+
+	status := "diaktifkan"
+	if !input.IsActive {
+		status = "dinonaktifkan"
+	}
+
+	return SendSuccess(c, fmt.Sprintf("Berhasil %s %d siswa", status, len(input.SiswaIDs)), nil)
+}

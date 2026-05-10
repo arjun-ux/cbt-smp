@@ -141,9 +141,9 @@ type CBTPesertaUjian struct {
 // CBT Jawaban Siswa
 type CBTJawabanSiswa struct {
 	ID             uint            `gorm:"primaryKey" json:"id"`
-	PesertaUjianID uint            `gorm:"index" json:"peserta_ujian_id"`
+	PesertaUjianID uint            `gorm:"uniqueIndex:idx_peserta_soal" json:"peserta_ujian_id"`
 	PesertaUjian   CBTPesertaUjian `gorm:"foreignKey:PesertaUjianID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"peserta_ujian"`
-	SoalID         uint            `gorm:"index" json:"soal_id"`
+	SoalID         uint            `gorm:"uniqueIndex:idx_peserta_soal" json:"soal_id"`
 	Soal           CBTSoal         `gorm:"foreignKey:SoalID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"soal"`
 	JawabanSiswa   string          `gorm:"type:text" json:"jawaban_siswa"`
 	RaguRagu       bool            `gorm:"default:false" json:"ragu_ragu"`

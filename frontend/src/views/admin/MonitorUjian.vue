@@ -145,6 +145,23 @@ const handleUnblock = async (pesertaId) => {
   }
 }
 
+const handleBlock = async (pesertaId) => {
+  try {
+    const res = await fetch(`${apiPrefix.value}/monitor/block/${pesertaId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    if (res.ok) {
+      alertStore.showAlert("Siswa berhasil diblokir", "success")
+      fetchData()
+    } else {
+      alertStore.showAlert("Gagal memblokir siswa", "error")
+    }
+  } catch (error) {
+    alertStore.showAlert("Kesalahan koneksi", "error")
+  }
+}
+
 
 
 const confirmResetSesi = (pesertaId) => {
@@ -412,6 +429,14 @@ onUnmounted(() => {
                       title="Reset Login (Sesi)"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                    </button>
+                    <button 
+                      v-if="isAuthorized && !p.is_terblokir && p.status_ujian !== 'Selesai'"
+                      @click="handleBlock(p.id)"
+                      class="w-10 h-10 flex items-center justify-center text-rose-500 hover:bg-rose-50 rounded-2xl transition-all active:scale-90 border border-rose-100 shadow-sm"
+                      title="Blokir Siswa Manual"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     </button>
                   </div>
 

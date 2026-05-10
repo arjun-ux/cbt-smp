@@ -187,6 +187,45 @@ func UnblockSiswa(c *fiber.Ctx) error {
 	return SendSuccess(c, "Blokir berhasil dibuka", nil)
 }
 
+// BlockSiswa memblokir akses ujian siswa secara manual
+func BlockSiswa(c *fiber.Ctx) error {
+	id := c.Params("pesertaId")
+	pesertaID := utils.StringToUint(id)
+
+	var peserta models.CBTPesertaUjian
+	if err := database.DB.Preload("Jadwal").First(&peserta, pesertaID).Error; err != nil {
+		return SendError(c, fiber.StatusNotFound, "Peserta tidak ditemukan")
+	}
+
+	// Security Check
+	role := GetUserRole(c)
+	if role == "guru" {
+		userID := GetUserID(c)
+		guru, _ := GetGuruByUserID(userID)
+		if peserta.Jadwal.PengawasID == nil || *peserta.Jadwal.PengawasID != guru.ID {
+			return SendError(c, fiber.StatusForbidden, "Hanya pengawas jadwal ini yang boleh melakukan aksi ini")
+		}
+	}
+
+	// Blokir dan putus sesi login
+	if err := database.DB.Model(&models.CBTPesertaUjian{}).Where("id = ?", pesertaID).
+		Select("is_terblokir", "waktu_login").
+		Updates(map[string]interface{}{
+			"is_terblokir": true,
+			"waktu_login":  nil,
+		}).Error; err != nil {
+		return SendError(c, fiber.StatusInternalServerError, "Gagal memblokir siswa")
+	}
+
+	// Log aktivitas
+	database.DB.Create(&models.LogUjian{
+		PesertaUjianID: uint(pesertaID),
+		KeteranganLog:  "DIBLOKIR MANUAL oleh Pengawas",
+	})
+
+	return SendSuccess(c, "Siswa berhasil diblokir", nil)
+}
+
 // ResetSesiSiswa menghapus status login agar siswa bisa masuk kembali (misal jika PC crash)
 // BUG FIX: Sisa waktu dan status pengerjaan TIDAK BOLEH di-reset ke 0 di sini.
 func ResetSesiSiswa(c *fiber.Ctx) error {
