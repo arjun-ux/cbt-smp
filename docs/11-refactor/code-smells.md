@@ -22,11 +22,11 @@ Berikut adalah hasil audit kualitas kode pada sistem CBT, dikategorikan berdasar
 - **Solusi**: Pisahkan logika bisnis ke dalam Service Layer (misal: `MonitorService`, `ScoringService`).
 
 ## 4. Inefficient Database Queries (N+1 Problem)
-- **Severity**: 🟢 EVALUATED
-- **Status**: 🏁 COMPLETED (KEEPT BASELINE)
-- **Alasan**: Fungsi `GetSiswaJadwal` dan `SyncJawaban` sebelumnya terindikasi N+1. Namun, hasil **Stress Test (2024-05-09)** menunjukkan bahwa pada skala 100 siswa, metode *loop* asli (Baseline) memberikan performa **35ms**, lebih cepat dibandingkan optimasi *JOIN/Subquery* (40-52ms).
-- **Dampak**: SQLite menangani loop query sederhana lebih baik daripada query kompleks dengan subquery correlated pada beban konkuren.
-- **Kesimpulan**: Mempertahankan kode asli untuk efisiensi maksimal pada skala target saat ini.
+- **Severity**: 🟢 OPTIMIZED
+- **Status**: ✅ COMPLETED (BULK SQL OPTIMIZED)
+- **Alasan**: Fungsi penghitungan nilai kini menggunakan **Bulk SQL Update (`UPDATE ... CASE`)**. 
+- **Dampak**: Alih-alih melakukan loop tulis (write) sebanyak jumlah soal, sistem hanya melakukan satu perintah tulis per siswa. 
+- **Hasil**: Menghilangkan error *SQLITE_BUSY* saat pengakhiran jadwal masal dan menjaga performa tetap di kisaran milidetik meskipun banyak siswa diproses sekaligus.
 
 ## 5. Tight Coupling to GORM
 - **Severity**: 🔵 LOW

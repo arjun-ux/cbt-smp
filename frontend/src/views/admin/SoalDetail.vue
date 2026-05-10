@@ -369,6 +369,19 @@ watch(showForm, (val) => {
 
 <template>
   <div>
+    <!-- Loading Overlay Global -->
+    <div v-if="isLoading" class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+      <div class="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+        <div class="relative">
+          <div class="w-12 h-12 border-4 border-slate-100 rounded-full"></div>
+          <div class="absolute top-0 w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <div class="text-center">
+          <p class="font-bold text-slate-800">Sedang Memproses...</p>
+          <p class="text-xs text-slate-500 mt-1">Sistem sedang membaca dokumen Anda</p>
+        </div>
+      </div>
+    </div>
     <!-- Konten Utama -->
     <div class="space-y-6 pb-4">
       <!-- Header -->

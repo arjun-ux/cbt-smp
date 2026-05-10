@@ -11,27 +11,28 @@ Ini adalah fitur paling krusial untuk memudahkan guru memasukkan soal dalam juml
 
 ### Cara Kerja:
 1. Guru mengunduh **Template Soal (.docx)** yang sudah disediakan.
-2. Guru mengisi soal, opsi jawaban (A, B, C, D), dan kunci jawaban ke dalam tabel atau format yang ditentukan di Word.
+2. Guru mengisi soal, opsi jawaban (A, B, C, D), dan kunci jawaban ke dalam tabel template.
 3. Guru mengunggah file tersebut melalui tombol **"Import Word"**.
-4. Backend akan membedah (parse) file Word, mengambil teks serta gambar, dan menyimpannya ke tabel `cbt_soals`.
+4. **Proses Parsing**: Frontend menggunakan pustaka `mammoth.js` untuk membaca isi file Word secara lokal di browser.
+5. **Feedback Visual**: Sistem menampilkan *Loading Overlay* dengan efek blur selama proses pembacaan file berlangsung.
+6. **Backend Processing**: Gambar yang disisipkan di Word akan otomatis diekstrak dan disimpan sebagai file fisik oleh backend menggunakan utilitas `ExtractBase64Images`.
 
 ### Ketentuan Template Word:
-- **Jenis Soal**: Harus ditentukan (PG atau ESSAY).
-- **Format Opsi**: A, B, C, D harus jelas.
-- **Kunci Jawaban**: Ditulis di kolom/baris yang sesuai dalam template.
-- **Gambar**: Bisa langsung disisipkan (Copy-Paste) ke dalam file Word.
+- **Jenis Soal**: Diidentifikasi berdasarkan angka di kolom tipe (2/5 untuk Essay, lainnya PG).
+- **Kunci Jawaban**: Untuk PG, ditandai dengan huruf 'v' atau 'V' pada kolom pilihan yang benar.
+- **Gambar**: Disisipkan langsung di dalam sel tabel pertanyaan atau opsi.
 
 ## Fitur Tambahan:
 - **Tambah Manual**: Input soal satu per satu melalui form editor (mendukung KaTeX untuk rumus matematika).
-- **Edit Soal**: Mengubah teks pertanyaan, opsi, atau bobot nilai soal yang sudah ada.
+- **Edit Soal**: Mengubah teks pertanyaan, opsi, atau bobot nilai.
 - **Hapus Soal**: Menghapus butir soal tertentu.
-- **Pratinjau Gambar**: Menampilkan gambar yang sudah diunggah untuk memastikan visual soal benar.
+- **Pratinjau Impor**: Menampilkan daftar soal yang berhasil dibaca dari Word sebelum benar-benar disimpan ke database.
 
 ## Teknis & API Calls:
 - `GET /api/[role]/bank-soal/:id/soal`: Mengambil daftar soal.
-- `POST /api/[role]/bank-soal/:id/import`: Endpoint untuk unggah file .docx.
-- `POST /api/[role]/bank-soal/:id/soal`: Simpan soal manual.
+- `POST /api/[role]/bank-soal/:id/soal`: Digunakan secara looping oleh frontend saat proses impor masal.
 - `DELETE /api/[role]/soal/:id`: Hapus butir soal.
+- `DELETE /api/[role]/bank-soal/:id/soal/clear`: Membersihkan semua soal lama sebelum impor baru dimulai.
 
 ## Validasi:
 - Sistem akan menolak file jika bukan berformat `.docx`.

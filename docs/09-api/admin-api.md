@@ -29,9 +29,9 @@ Endpoint standar CRUD untuk data master sekolah.
 ### 2.2 Soal Detail
 - **Route**: `/api/[role]/bank-soal/:bankSoalId/soal`
 - **Import Soal**: `POST /api/[role]/bank-soal/:bankSoalId/import`
-    - Mengambil data pertanyaan, opsi, dan kunci dari template Word (.docx).
-    - Mendukung gambar yang tersemat (embedded) di dalam dokumen.
-    - Side Effect: Batch insert ke `cbt_soals`.
+    - *Note*: Endpoint ini tersedia di backend, namun antarmuka saat ini menggunakan metode *Direct Looping POST* dari frontend setelah parsing dokumen di sisi klien.
+    - Mendukung ekstraksi gambar otomatis via utilitas `ExtractBase64Images`.
+    - Side Effect: Batch insert atau individual insert ke `cbt_soals`.
 
 ---
 

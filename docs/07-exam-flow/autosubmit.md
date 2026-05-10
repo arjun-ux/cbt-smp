@@ -33,7 +33,7 @@ Dilakukan secara otomatis ketika status **Jadwal Ujian** diubah menjadi **"Seles
 Setiap proses Submit (Auto/Manual/Force) akan memicu fungsi `HitungNilaiPG` di backend:
 
 ```go
-func HitungNilaiPG(pesertaID uint, bankSoalID uint) float64 {
+func HitungNilaiPG(db *gorm.DB, pesertaID uint, bankSoalID uint) float64 {
     // 1. Ambil Kunci Jawaban dari cbt_soals
     // 2. Ambil Jawaban Siswa dari cbt_jawaban_siswas
     // 3. Bandingkan Soal per Soal
