@@ -23,5 +23,4 @@ Rencana perbaikan kode ini dibagi menjadi tiga fase berdasarkan urgensi dan damp
 
 1.  **Repository Pattern**: Melakukan abstraksi database untuk mendukung unit testing dan kemudahan migrasi database di masa depan.
 2.  **Service Layer Implementation**: Memindahkan logika bisnis dari handler ke service layer untuk mendukung pemisahan tanggung jawab (Separation of Concerns).
-3.  **WebSocket Migration**: Mengganti sistem polling pada dashboard monitoring dengan WebSocket untuk efisiensi resource server dan update yang lebih real-time.
-4.  **Frontend Testing**: Implementasi unit testing untuk komponen-komponen kritis di frontend menggunakan Vitest.
+3.  **Frontend Testing**: Implementasi unit testing untuk komponen-komponen kritis di frontend menggunakan Vitest.

@@ -176,11 +176,6 @@ func ValidateExam(c *fiber.Ctx) error {
 		}
 	}
 
-	isNewSession := false
-	if err != nil || peserta.StatusUjian == "Belum Mengerjakan" {
-		isNewSession = true
-	}
-
 	// 8. Generate Token
 	token, err := utils.GenerateJWT(siswa.User.ID, siswa.NamaLengkap, "siswa")
 	if err != nil {
@@ -193,7 +188,7 @@ func ValidateExam(c *fiber.Ctx) error {
 		"siswa":          siswa,
 		"jadwal":         jadwal,
 		"sisa_waktu":     peserta.SisaWaktuDetik,
-		"is_new_session": isNewSession,
+		"attempt_id":     peserta.AttemptID,
 	})
 }
 
@@ -207,10 +202,7 @@ func GetSoalUjian(c *fiber.Ctx) error {
 	}
 
 	var soals []models.CBTSoal
-	query := database.DB.Where("bank_soal_id = ?", jadwal.BankSoalID)
-	if jadwal.AcakSoal {
-		query = query.Order("RANDOM()")
-	}
+	query := database.DB.Where("bank_soal_id = ?", jadwal.BankSoalID).Order("id ASC")
 	query.Find(&soals)
 
 	type SoalView struct {
@@ -271,7 +263,9 @@ func GetSoalUjian(c *fiber.Ctx) error {
 		"peserta_id":       peserta.ID,
 		"is_terblokir":     peserta.IsTerblokir,
 		"status_ujian":     peserta.StatusUjian,
+		"acak_soal":        jadwal.AcakSoal,
 		"acak_jawaban":     jadwal.AcakJawaban,
+		"attempt_id":      peserta.AttemptID,
 		"existing_answers": existingAnswers,
 	})
 }
@@ -312,6 +306,7 @@ func SyncJawaban(c *fiber.Ctx) error {
 		PesertaUjianID uint          `json:"peserta_ujian_id"`
 		Items          []JawabanItem `json:"items"`
 		SisaWaktu      int           `json:"sisa_waktu"`
+		AttemptID      int           `json:"attempt_id"`
 	}
 
 	var input JawabanBatchInput
@@ -335,6 +330,14 @@ func SyncJawaban(c *fiber.Ctx) error {
 
 	if peserta.IsTerblokir {
 		return SendError(c, fiber.StatusForbidden, "Akses ujian Anda diblokir karena pelanggaran. Hubungi pengawas.", "ACCOUNT_BLOCKED")
+	}
+
+	// VALIDASI ATTEMPT ID: Jika client mengirim data dari sesi lama (sebelum reset), ABAIKAN.
+	if input.AttemptID > 0 && input.AttemptID < peserta.AttemptID {
+		return SendSuccess(c, "Sync diabaikan (Data Lama)", fiber.Map{
+			"status":     "OUTDATED_SESSION",
+			"attempt_id": peserta.AttemptID,
+		})
 	}
 
 	// Gunakan Transaksi untuk Batch Save
@@ -424,8 +427,8 @@ func LogSiswa(c *fiber.Ctx) error {
 	return SendSuccess(c, "Logged", nil)
 }
 
-// HitungNilaiPG adalah helper untuk menghitung skor PG siswa
-func HitungNilaiPG(db *gorm.DB, pesertaID uint, bankSoalID uint) float64 {
+// HitungNilaiPG adalah helper untuk menghitung skor PG siswa beserta jumlah benar/salah
+func HitungNilaiPG(db *gorm.DB, pesertaID uint, bankSoalID uint) (float64, int, int) {
 	// 1. Update semua skor jawaban siswa sekaligus dalam satu query SQL (Sangat Cepat)
 	db.Exec(`
 		UPDATE cbt_jawaban_siswas 
@@ -436,11 +439,22 @@ func HitungNilaiPG(db *gorm.DB, pesertaID uint, bankSoalID uint) float64 {
 		END 
 		WHERE peserta_ujian_id = ?`, pesertaID)
 
-	// 2. Ambil total skor yang sudah diupdate
+	// 2. Ambil total skor, jumlah benar, dan jumlah salah
 	var totalNilai float64
-	db.Raw("SELECT COALESCE(SUM(skor), 0) FROM cbt_jawaban_siswas WHERE peserta_ujian_id = ?", pesertaID).Scan(&totalNilai)
+	var benar, salah int
 
-	return totalNilai
+	db.Raw("SELECT COALESCE(SUM(skor), 0) FROM cbt_jawaban_siswas WHERE peserta_ujian_id = ?", pesertaID).Scan(&totalNilai)
+	
+	db.Raw(`
+		SELECT 
+			COUNT(CASE WHEN cbt_jawaban_siswas.skor > 0 THEN 1 END) as benar,
+			COUNT(CASE WHEN cbt_jawaban_siswas.skor = 0 AND cbt_jawaban_siswas.jawaban_siswa != "" THEN 1 END) as salah
+		FROM cbt_jawaban_siswas 
+		JOIN cbt_soals ON cbt_soals.id = cbt_jawaban_siswas.soal_id
+		WHERE cbt_jawaban_siswas.peserta_ujian_id = ? AND cbt_soals.jenis_soal = 'PG'`, pesertaID).
+		Row().Scan(&benar, &salah)
+
+	return totalNilai, benar, salah
 }
 
 // SubmitUjian mengakhiri sesi ujian dan menghitung nilai PG otomatis
@@ -458,13 +472,15 @@ func SubmitUjian(c *fiber.Ctx) error {
 	}
 
 	// Hitung Nilai via Helper
-	totalNilaiPG := HitungNilaiPG(database.DB, peserta.ID, peserta.Jadwal.BankSoalID)
+	totalNilaiPG, benar, salah := HitungNilaiPG(database.DB, peserta.ID, peserta.Jadwal.BankSoalID)
 
 	// 5. Update Status dan Nilai
 	err := database.DB.Model(&peserta).Updates(map[string]interface{}{
 		"status_ujian":        "Selesai",
 		"waktu_selesai_ujian": &now,
 		"nilai_pg":            totalNilaiPG,
+		"jumlah_benar":        benar,
+		"jumlah_salah":        salah,
 		"total_nilai":         totalNilaiPG + peserta.NilaiEssay, // Essay masih 0
 	}).Error
 

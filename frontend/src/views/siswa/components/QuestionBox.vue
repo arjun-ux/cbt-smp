@@ -32,8 +32,8 @@ defineProps({
       <!-- PG Options -->
       <div v-if="soal?.jenis_soal === 'PG'" class="grid grid-cols-1 gap-3">
         <button 
-          v-for="(opt, idx) in soal.displayOptions" 
-          :key="opt.key"
+          v-for="(opt, idx) in soal?.displayOptions" 
+          :key="soal.id + '-' + opt.key"
           @click="examStore.setAnswer(soal.id, opt.key)"
           :class="[
             examStore.answers[soal?.id] === opt.key 

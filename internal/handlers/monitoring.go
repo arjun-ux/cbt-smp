@@ -128,7 +128,7 @@ func ForceSubmit(c *fiber.Ctx) error {
 	}
 
 	// Hitung Nilai PG Otomatis
-	totalNilaiPG := HitungNilaiPG(database.DB, peserta.ID, peserta.Jadwal.BankSoalID)
+	totalNilaiPG, benar, salah := HitungNilaiPG(database.DB, peserta.ID, peserta.Jadwal.BankSoalID)
 
 	// Update status menjadi Selesai dan masukkan Nilai
 	now := time.Now()
@@ -136,6 +136,8 @@ func ForceSubmit(c *fiber.Ctx) error {
 		"status_ujian":        "Selesai",
 		"waktu_selesai_ujian": &now,
 		"nilai_pg":            totalNilaiPG,
+		"jumlah_benar":        benar,
+		"jumlah_salah":        salah,
 		"total_nilai":         totalNilaiPG + peserta.NilaiEssay,
 	})
 
@@ -315,6 +317,7 @@ func ResetUjianSiswa(c *fiber.Ctx) error {
 			"nilai_pg":            0,
 			"nilai_essay":         0,
 			"total_nilai":         0,
+			"attempt_id":         peserta.AttemptID + 1,
 		}).Error
 
 	if err != nil {
@@ -339,10 +342,13 @@ type RekapNilai struct {
 	NISN         string  `json:"nisn"`
 	Kelas        string  `json:"kelas"`
 	NilaiPG      float64 `json:"nilai_pg"`
+	JumlahBenar  int     `json:"jumlah_benar"`
+	JumlahSalah  int     `json:"jumlah_salah"`
 	NilaiEssay   float64 `json:"nilai_essay"`
 	TotalNilai   float64 `json:"total_nilai"`
 	StatusUjian  string  `json:"status_ujian"`
 	WaktuSelesai string  `json:"waktu_selesai"`
+	IsKoreksi    bool    `json:"is_koreksi"`
 }
 
 // GetPengawasJadwals mengambil daftar jadwal di mana guru ybs ditugaskan sebagai pengawas
@@ -425,6 +431,25 @@ func GetRekapNilai(c *fiber.Ctx) error {
 		return SendError(c, fiber.StatusInternalServerError, "Gagal mengambil rekap nilai")
 	}
 
+	// Hitung Benar/Salah Masal (Hanya untuk PG)
+	type CountResult struct {
+		PesertaUjianID uint `gorm:"column:peserta_ujian_id"`
+		Benar          int  `gorm:"column:benar"`
+		Salah          int  `gorm:"column:salah"`
+	}
+	var counts []CountResult
+	database.DB.Table("cbt_jawaban_siswas").
+		Joins("JOIN cbt_soals ON cbt_soals.id = cbt_jawaban_siswas.soal_id").
+		Select("peserta_ujian_id, SUM(CASE WHEN cbt_jawaban_siswas.skor > 0 THEN 1 ELSE 0 END) as benar, SUM(CASE WHEN cbt_jawaban_siswas.skor = 0 AND cbt_jawaban_siswas.jawaban_siswa != '' THEN 1 ELSE 0 END) as salah").
+		Where("cbt_soals.jenis_soal = 'PG' AND cbt_jawaban_siswas.peserta_ujian_id IN (SELECT id FROM cbt_peserta_ujians WHERE jadwal_id = ?)", jadwalID).
+		Group("peserta_ujian_id").
+		Scan(&counts)
+
+	countMap := make(map[uint]CountResult)
+	for _, cnt := range counts {
+		countMap[cnt.PesertaUjianID] = cnt
+	}
+
 	results := make([]RekapNilai, 0)
 	for _, p := range peserta {
 		waktuSelesai := "-"
@@ -432,16 +457,21 @@ func GetRekapNilai(c *fiber.Ctx) error {
 			waktuSelesai = p.WaktuSelesaiUjian.Format("02/01/2006 15:04")
 		}
 
+		cResult := countMap[p.ID]
+
 		results = append(results, RekapNilai{
 			ID:           p.ID,
 			NamaSiswa:    p.Siswa.NamaLengkap,
 			NISN:         p.Siswa.NISN,
 			Kelas:        p.Siswa.Kelas.NamaKelas,
 			NilaiPG:      p.NilaiPG,
+			JumlahBenar:  cResult.Benar,
+			JumlahSalah:  cResult.Salah,
 			NilaiEssay:   p.NilaiEssay,
 			TotalNilai:   p.TotalNilai,
 			StatusUjian:  p.StatusUjian,
 			WaktuSelesai: waktuSelesai,
+			IsKoreksi:    p.IsKoreksi,
 		})
 	}
 
@@ -466,13 +496,19 @@ func GetJawabanPeserta(c *fiber.Ctx) error {
 		JenisSoal    string  `json:"jenis_soal"`
 		BobotMaks    float64 `json:"bobot_maks"`
 		JawabanSiswa string  `json:"jawaban_siswa"`
+		KunciJawaban string  `json:"kunci_jawaban"`
+		OpsiA        string  `json:"opsi_a"`
+		OpsiB        string  `json:"opsi_b"`
+		OpsiC        string  `json:"opsi_c"`
+		OpsiD        string  `json:"opsi_d"`
 		Skor         float64 `json:"skor"`
 	}
 
 	err := database.DB.Table("cbt_soals").
-		Select("cbt_soals.id as soal_id, cbt_soals.pertanyaan, cbt_soals.jenis_soal, cbt_soals.bobot_nilai as bobot_maks, cbt_jawaban_siswas.jawaban_siswa, cbt_jawaban_siswas.skor").
+		Select("cbt_soals.id as soal_id, cbt_soals.pertanyaan, cbt_soals.jenis_soal, cbt_soals.bobot_nilai as bobot_maks, cbt_soals.kunci_jawaban, cbt_soals.opsi_a, cbt_soals.opsi_b, cbt_soals.opsi_c, cbt_soals.opsi_d, cbt_jawaban_siswas.jawaban_siswa, cbt_jawaban_siswas.skor").
 		Joins("LEFT JOIN cbt_jawaban_siswas ON cbt_jawaban_siswas.soal_id = cbt_soals.id AND cbt_jawaban_siswas.peserta_ujian_id = ?", pesertaID).
 		Where("cbt_soals.bank_soal_id = ?", peserta.Jadwal.BankSoalID).
+		Order("cbt_soals.id ASC").
 		Scan(&results).Error
 
 	if err != nil {
@@ -528,6 +564,7 @@ func UpdateKoreksiEssay(c *fiber.Ctx) error {
 
 	peserta.NilaiEssay = totalEssay
 	peserta.TotalNilai = peserta.NilaiPG + totalEssay
+	peserta.IsKoreksi = true
 	tx.Save(&peserta)
 
 	tx.Commit()

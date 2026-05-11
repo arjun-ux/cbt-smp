@@ -133,9 +133,13 @@ type CBTPesertaUjian struct {
 	SisaWaktuDetik    int            `json:"sisa_waktu_detik"`
 	StatusUjian       string         `gorm:"type:varchar(20);default:'Sedang Mengerjakan'" json:"status_ujian"`
 	NilaiPG           float64        `gorm:"default:0" json:"nilai_pg"`
+	JumlahBenar       int            `gorm:"default:0" json:"jumlah_benar"`
+	JumlahSalah       int            `gorm:"default:0" json:"jumlah_salah"`
 	NilaiEssay        float64        `gorm:"default:0" json:"nilai_essay"`
 	TotalNilai        float64        `gorm:"default:0" json:"total_nilai"`
 	IsTerblokir       bool           `gorm:"default:false" json:"is_terblokir"`
+	AttemptID         int            `gorm:"default:1" json:"attempt_id"`
+	IsKoreksi         bool           `gorm:"default:false" json:"is_koreksi"`
 }
 
 // CBT Jawaban Siswa
@@ -180,6 +184,8 @@ type CBTRekapNilai struct {
 	JudulUjian   string    `gorm:"type:varchar(200)" json:"judul_ujian"`
 	TanggalUjian string    `json:"tanggal_ujian"`
 	NilaiPG      float64   `json:"nilai_pg"`
+	JumlahBenar  int       `json:"jumlah_benar"`
+	JumlahSalah  int       `json:"jumlah_salah"`
 	NilaiEssay   float64   `json:"nilai_essay"`
 	TotalNilai   float64   `json:"total_nilai"`
 	CreatedAt    time.Time `json:"created_at"`

@@ -5,8 +5,9 @@ Dokumen ini merangkum rencana pengembangan fitur baru untuk membawa sistem CBT i
 ## Tahap 1: Core Hardening (Q2 2026)
 *Fokus: Keamanan dan Reliabilitas Dasar*
 
-- [ ] **Implementasi WebSocket**: Monitoring pengawas yang lebih responsif.
-- [ ] **Clipboard & Right-click Lock**: Proteksi dasar konten soal.
+- [x] **Clipboard & Right-click Lock**: ✅ COMPLETED (May 2026) - Proteksi dasar konten soal.
+- [ ] **Administrative Documents**: Fitur cetak Kartu Ujian, Daftar Hadir, dan Berita Acara (PDF).
+- [ ] **Global Application Settings**: UI untuk mengatur Nama Sekolah, Logo, dan Tahun Ajaran.
 - [ ] **Auto-Backup Database**: Skrip backup otomatis `cbt.db` setiap jam ke storage eksternal.
 - [ ] **Enhanced Logs**: Logging setiap klik navigasi siswa untuk audit jejak digital.
 

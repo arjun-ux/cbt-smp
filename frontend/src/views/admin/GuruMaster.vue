@@ -453,38 +453,46 @@ onMounted(fetchGurus)
     </BaseModal>
 
     <!-- Modal Preview Import -->
-    <BaseModal 
-      :show="showPreview"
-      title="Pratinjau Import Guru"
-      confirmText="Simpan Semua"
-      :isLoading="isUploading"
-      size="lg"
-      @close="showPreview = false"
-      @confirm="commitImport"
-    >
-      <div class="space-y-4">
-        <p class="text-sm text-slate-500">Silakan periksa kembali data guru berikut sebelum disimpan ke database.</p>
-        <div class="max-h-[400px] overflow-y-auto border border-slate-100 rounded-xl">
-          <table class="min-w-full divide-y divide-slate-100">
-            <thead class="bg-slate-50 sticky top-0">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">NIP</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Nama Guru</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Password</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-slate-50">
-              <tr v-for="(item, idx) in previewData" :key="idx" class="hover:bg-slate-50">
-                <td class="px-4 py-3 text-sm font-bold text-slate-700">{{ item.nip }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ item.nama_guru }}</td>
-                <td class="px-4 py-3 text-sm font-mono text-slate-400">{{ item.password }}</td>
-              </tr>
-            </tbody>
-          </table>
+    <div v-if="showPreview" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div>
+            <h4 class="text-xl font-black text-slate-800">Pratinjau Data Impor</h4>
+            <p class="text-sm text-slate-500">Periksa kembali data guru sebelum disimpan ke sistem</p>
+          </div>
+          <button @click="showPreview = false" class="p-2 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-all shadow-sm">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
         </div>
-        <p class="text-[10px] text-slate-400 font-medium">* Pastikan NIP tidak ada yang sama dengan data yang sudah terdaftar.</p>
+        <div class="flex-1 overflow-auto p-8">
+          <div class="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+            <table class="min-w-full divide-y divide-slate-100">
+              <thead class="bg-slate-50 sticky top-0">
+                <tr>
+                  <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">NIP</th>
+                  <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Nama Guru</th>
+                  <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Password</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 bg-white">
+                <tr v-for="(item, idx) in previewData" :key="idx" class="hover:bg-slate-50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-bold text-slate-700">{{ item.nip }}</td>
+                  <td class="px-6 py-4 text-sm text-slate-600 font-medium">{{ item.nama_guru }}</td>
+                  <td class="px-6 py-4 text-sm font-mono text-slate-400">{{ item.password }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-4 text-[10px] text-slate-400 font-medium italic">* Pastikan NIP tidak ada yang sama dengan data yang sudah terdaftar.</p>
+        </div>
+        <div class="p-8 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+          <button @click="showPreview = false" class="px-8 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition-all">Batal</button>
+          <button @click="commitImport" :disabled="isUploading" class="px-10 py-3 rounded-2xl text-sm font-black bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all disabled:opacity-50">
+            {{ isUploading ? 'Mengimpor...' : 'Konfirmasi & Impor' }}
+          </button>
+        </div>
       </div>
-    </BaseModal>
+    </div>
 
     <!-- Modal Konfirmasi Hapus -->
     <ConfirmModal 

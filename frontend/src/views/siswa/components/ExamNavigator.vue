@@ -47,7 +47,7 @@ const handleJump = (idx) => {
       </button>
     </div>
     
-    <div v-if="!isMobile" class="mt-8 pt-6 border-t border-slate-100">
+    <div class="mt-8 pt-6 border-t border-slate-100">
       <button 
         @click="$emit('finish')"
         :disabled="!examStore.isAllAnswered"

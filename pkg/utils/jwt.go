@@ -9,13 +9,16 @@ import (
 )
 
 // Secret key untuk sign token, diambil dari Environment Variable (.env)
-var jwtSecret = func() []byte {
+func getJWTSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return []byte("KODE_RAHASIA_DEFAULT_YANG_SANGAT_KUAT_CBT_SMP_2026!")
+		// Kita kembalikan kosong dulu, nanti main.go yang akan melakukan validasi ketat
+		return []byte("")
 	}
 	return []byte(secret)
-}()
+}
+
+var jwtSecret = getJWTSecret()
 
 // GenerateJWT membuat token baru untuk user yang berhasil login
 func GenerateJWT(userID uint, username string, role string) (string, error) {

@@ -9,7 +9,6 @@ Berdasarkan perbandingan dengan standar sistem CBT modern (seperti Moodle, Candy
 - **Device Fingerprinting**: Mencatat ID perangkat unik untuk mencegah satu akun login di dua browser berbeda secara bergantian.
 
 ## 2. Real-time Monitoring (Optimization)
-- **WebSocket Implementation**: Mengganti sistem Polling (AJAX) dengan WebSocket agar monitoring pengawas benar-benar real-time dan hemat resource server.
 - **Remote Action Notification**: Mengirim pesan instruksi langsung ke layar siswa dari dashboard pengawas.
 
 ## 3. Advanced Question Bank
@@ -27,6 +26,7 @@ Berdasarkan perbandingan dengan standar sistem CBT modern (seperti Moodle, Candy
 - **PostgreSQL/MySQL Support**: Dukungan database enterprise untuk menangani ribuan siswa secara simultan (SQLite memiliki limitasi konkurensi tulis).
 - **S3 Storage Integration**: Menyimpan file gambar soal di cloud storage agar aplikasi bisa berjalan secara serverless/multi-instance.
 
-## 6. Communication
+## 6. Communication & Administration
 - **Notification System**: Mengirimkan token ujian atau pengumuman melalui WhatsApp/Email secara otomatis.
-- **Helpdesk Chat**: Fitur chat terbatas antara siswa dan pengawas untuk melaporkan kendala teknis tanpa harus meninggalkan tempat duduk.
+- **Administrative Documents (Cetak PDF)**: Fitur ekspor dokumen standar ujian seperti Kartu Ujian Siswa, Daftar Hadir, Berita Acara, dan Jadwal Ujian.
+- **Application Settings**: Pengaturan identitas sekolah (Nama, Logo, Alamat) dan konfigurasi sistem secara terpusat melalui UI Admin.

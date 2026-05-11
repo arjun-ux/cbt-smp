@@ -10,12 +10,14 @@ import (
 	"cbt-smp/internal/routes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	"os"
 	"flag"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 func openBrowser(url string) {
@@ -43,6 +45,15 @@ func main() {
 		log.Println("Info: File .env tidak ditemukan, menggunakan setelan default.")
 	}
 
+	// --- SECURITY: JWT Secret Hardening ---
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("KRITIKAL: JWT_SECRET belum diatur di file .env! Aplikasi tidak dapat dijalankan demi keamanan.")
+	}
+	if len(jwtSecret) < 32 {
+		log.Fatal("KRITIKAL: JWT_SECRET terlalu pendek (minimal 32 karakter)! Harap gunakan kunci yang lebih kuat untuk melindungi data.")
+	}
+
 	// Inisialisasi Database
 	database.ConnectDB()
 
@@ -60,8 +71,38 @@ func main() {
 	// Middleware
 	app.Use(logger.New())
 
+	// --- SECURITY: Rate Limiting ---
+	// 1. Strict Limiter untuk Login & Validasi Token (Anti-Brute Force)
+	authLimiter := limiter.New(limiter.Config{
+		Max:               5, // Maksimal 5 percobaan
+		Expiration:        1 * time.Minute,
+		KeyGenerator:      func(c *fiber.Ctx) string { return c.IP() },
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": "Terlalu banyak percobaan login/validasi. Silakan tunggu 1 menit.",
+			})
+		},
+	})
+	// Terapkan pada endpoint sensitif
+	app.Use("/api/auth/login", authLimiter)
+	app.Use("/api/siswa/validate", authLimiter)
+
 	// API Routes
 	api := app.Group("/api")
+
+	// 2. Global API Limiter (Pencegahan DOS/Spam umum)
+	api.Use(limiter.New(limiter.Config{
+		Max:        300, // Menaikkan batas ke 300 untuk rute umum
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string { return c.IP() },
+		Next: func(c *fiber.Ctx) bool {
+			path := c.Path()
+			// JANGAN batasi rute polling agar tidak mengganggu ujian massal di Lab Sekolah
+			return strings.Contains(path, "/sync") || 
+			       strings.Contains(path, "/log") || 
+			       strings.Contains(path, "/monitor")
+		},
+	}))
 	// Route Download Template (jika masih diperlukan atau folder statis lainnya)
 	// app.Static("/template-soal.csv", "./template_soal.csv")
 

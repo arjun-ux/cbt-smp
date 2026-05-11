@@ -10,6 +10,7 @@ export const useExamStore = defineStore('exam', {
     raguStatus: {},
     timeLeft: 0,
     currentIdx: 0,
+    attemptId: 0,
     isTerblokir: false,
     isLoading: true,
     isSubmitting: false,
@@ -38,11 +39,6 @@ export const useExamStore = defineStore('exam', {
       // Selalu bersihkan state lama sebelum memulai sesi baru
       this.clearStore()
       this.examInfo = info
-      
-      // Jika ini adalah sesi baru (First start atau Reset Total), bersihkan LocalStorage
-      if (info.is_new_session) {
-        this.clearLocalStorage()
-      }
     },
 
     clearStore() {
@@ -57,6 +53,7 @@ export const useExamStore = defineStore('exam', {
       this.syncStatus = 'synced'
       this.dirtyQuestions = new Set()
       this.examInfo = null
+      this.attemptId = 0
     },
 
     async fetchQuestions() {
@@ -71,7 +68,7 @@ export const useExamStore = defineStore('exam', {
         const d = await res.json()
         
         if (res.ok) {
-          this.questions = (d.data.items || []).map(s => {
+          let rawQuestions = (d.data.items || []).map(s => {
             const ops = [
               { key: 'A', text: s.opsi_a },
               { key: 'B', text: s.opsi_b },
@@ -79,23 +76,34 @@ export const useExamStore = defineStore('exam', {
               { key: 'D', text: s.opsi_d },
             ]
             
-            // Logic for shuffling options if needed
-            const displayOptions = d.data.acak_jawaban ? this.shuffleArray(ops) : ops
+            // 1. Acak Jawaban jika aktif (Gunakan seed gabungan Peserta + Soal agar tetap stabil)
+            const displayOptions = d.data.acak_jawaban 
+              ? this.shuffleArray(ops, this.examInfo.peserta_id + s.id) 
+              : ops
             
             return { ...s, displayOptions }
           })
+          
+          // 2. Acak Soal jika aktif (Gunakan seed Peserta agar urutan soal tetap sama bagi siswa tersebut)
+          if (d.data.acak_soal) {
+            this.questions = this.shuffleArray(rawQuestions, this.examInfo.peserta_id)
+          } else {
+            this.questions = rawQuestions
+          }
           
           this.timeLeft = d.data.sisa_waktu
           this.isTerblokir = d.data.is_terblokir
           
           // Jika status adalah 'Belum Mengerjakan' (hasil Reset Total dari Admin),
           // Hapus sisa-sisa memori dan LocalStorage lama agar tidak mencemari ujian baru.
-          if (d.data.status_ujian === 'Belum Mengerjakan') {
+          if (d.data.status_ujian === 'Belum Mengerjakan' || (this.attemptId > 0 && d.data.attempt_id > this.attemptId)) {
+            console.log("!!! RESET DETECTED !!!", "Server Attempt:", d.data.attempt_id, "Local Attempt:", this.attemptId)
             this.clearLocalStorage()
             this.answers = {}
             this.raguStatus = {}
             this.currentIdx = 0
           }
+          this.attemptId = d.data.attempt_id
 
           // Load existing answers from DB
           if (d.data.existing_answers) {
@@ -181,7 +189,8 @@ export const useExamStore = defineStore('exam', {
       const payload = {
         peserta_ujian_id: this.examInfo.peserta_id,
         items: itemsToSync,
-        sisa_waktu: this.timeLeft
+        sisa_waktu: this.timeLeft,
+        attempt_id: this.attemptId
       }
 
       try {
@@ -214,6 +223,14 @@ export const useExamStore = defineStore('exam', {
           this.syncStatus = 'synced'
           this.lastSyncTime = new Date().toLocaleTimeString('id-ID')
           
+          // Deteksi Reset Total dari hasil Sync (jika status returned)
+          if (data.data && data.data.status === 'OUTDATED_SESSION') {
+            console.error("Sesi Kedaluwarsa! Membersihkan data...")
+            this.clearLocalStorage()
+            window.location.reload() // Paksa refresh untuk ambil status baru
+            return 'outdated'
+          }
+
           if (data.data.sisa_waktu !== undefined && Math.abs(data.data.sisa_waktu - this.timeLeft) > 5) {
             this.timeLeft = data.data.sisa_waktu
           }
@@ -229,7 +246,11 @@ export const useExamStore = defineStore('exam', {
 
     saveToLocalStorage() {
       if (this.examInfo) {
-        localStorage.setItem(`answers_${this.examInfo.peserta_id}`, JSON.stringify(this.answers))
+        const dataToSave = {
+          answers: this.answers,
+          raguStatus: this.raguStatus
+        }
+        localStorage.setItem(`answers_${this.examInfo.peserta_id}`, JSON.stringify(dataToSave))
       }
     },
 
@@ -244,11 +265,21 @@ export const useExamStore = defineStore('exam', {
       if (savedLocal) {
         try {
           const localData = JSON.parse(savedLocal)
-          Object.keys(localData).forEach(sId => {
+          // Support old format and new format with raguStatus
+          const answers = localData.answers || localData
+          const ragu = localData.raguStatus || {}
+
+          Object.keys(answers).forEach(sId => {
             if (this.answers[sId] === undefined || this.answers[sId] === "") {
-              this.answers[sId] = localData[sId]
+              this.answers[sId] = answers[sId]
               this.dirtyQuestions.add(parseInt(sId))
               this.syncStatus = 'pending'
+            }
+          })
+
+          Object.keys(ragu).forEach(sId => {
+            if (this.raguStatus[sId] === undefined) {
+              this.raguStatus[sId] = ragu[sId]
             }
           })
         } catch (e) {
@@ -257,11 +288,22 @@ export const useExamStore = defineStore('exam', {
       }
     },
 
-    shuffleArray(array) {
+    // Generator angka acak yang deterministik (Seeded PRNG)
+    seededRandom(seed) {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    },
+
+    shuffleArray(array, seed) {
       const newArr = [...array]
-      for (let i = newArr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+      let m = newArr.length, t, i;
+      let s = seed;
+      
+      while (m) {
+        i = Math.floor(this.seededRandom(s++) * m--);
+        t = newArr[m];
+        newArr[m] = newArr[i];
+        newArr[i] = t;
       }
       return newArr
     }

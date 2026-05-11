@@ -231,13 +231,15 @@ func UpdateJadwal(c *fiber.Ctx) error {
 			now := time.Now()
 			for _, p := range pesertaBelumSelesai {
 				// Hitung Nilai (Helper) - Sekarang menggunakan transaksi 'tx' yang sama
-				nilaiPG := HitungNilaiPG(tx, p.ID, jadwal.BankSoalID)
+				nilaiPG, benar, salah := HitungNilaiPG(tx, p.ID, jadwal.BankSoalID)
 
 				// Update data peserta
 				if err := tx.Model(&p).Updates(map[string]interface{}{
 					"status_ujian":        "Selesai",
 					"waktu_selesai_ujian": &now,
 					"nilai_pg":            nilaiPG,
+					"jumlah_benar":        benar,
+					"jumlah_salah":        salah,
 					"total_nilai":         nilaiPG + p.NilaiEssay,
 				}).Error; err != nil {
 					return err
@@ -339,6 +341,8 @@ func ArchiveJadwalResults(c *fiber.Ctx) error {
 				JudulUjian:   jadwal.BankSoal.JudulBankSoal,
 				TanggalUjian: jadwal.TanggalUjian,
 				NilaiPG:      p.NilaiPG,
+				JumlahBenar:  p.JumlahBenar,
+				JumlahSalah:  p.JumlahSalah,
 				NilaiEssay:   p.NilaiEssay,
 				TotalNilai:   p.TotalNilai,
 				CreatedAt:    time.Now(),

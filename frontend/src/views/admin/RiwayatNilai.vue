@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import { useAlertStore } from '../../store/alert'
 
@@ -11,6 +11,9 @@ const isLoading = ref(false)
 const searchQuery = ref('')
 const filterMapel = ref('')
 const filterKelas = ref('')
+const isDetailPGModalOpen = ref(false)
+const selectedPeserta = ref(null)
+const jawabanLengkap = ref([])
 
 const currentPage = ref(1)
 const itemsPerPage = ref(20)
@@ -61,10 +64,38 @@ const paginatedResults = computed(() => {
 })
 
 // Reset ke halaman 1 jika filter berubah
-import { watch } from 'vue'
 watch([searchQuery, filterMapel, filterKelas], () => {
   currentPage.value = 1
 })
+
+const openDetailPG = async (peserta) => {
+  selectedPeserta.value = peserta
+  isDetailPGModalOpen.value = true
+  jawabanLengkap.value = []
+  
+  try {
+    const apiPrefix = authStore.user?.role === 'admin' ? '/api/admin' : '/api/guru'
+    const res = await fetch(`${apiPrefix}/monitor/jawaban/${peserta.id}`, {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    const d = await res.json()
+    if (res.ok) {
+      jawabanLengkap.value = d.data || []
+    }
+  } catch (e) {
+    console.error("Gagal ambil detail jawaban", e)
+  }
+}
+
+const getOpsiText = (jawaban, item) => {
+  if (!jawaban) return '(Tidak menjawab)'
+  const key = jawaban.toUpperCase()
+  if (key === 'A') return item.opsi_a
+  if (key === 'B') return item.opsi_b
+  if (key === 'C') return item.opsi_c
+  if (key === 'D') return item.opsi_d
+  return jawaban
+}
 
 const fetchData = async () => {
   isLoading.value = true
@@ -184,7 +215,18 @@ onMounted(fetchData)
                 </div>
               </td>
               <td class="px-6 py-4 text-center text-xs font-bold text-slate-500">{{ formatDate(r.tanggal_ujian) }}</td>
-              <td class="px-6 py-4 text-center font-bold text-slate-600 font-mono">{{ r.nilai_pg }}</td>
+              <td class="px-6 py-4 text-center font-bold text-slate-600 font-mono">
+                <div class="flex flex-col items-center">
+                  <span class="text-xs">{{ r.nilai_pg }}</span>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span class="text-[9px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100" title="Jawaban Benar">B: {{ r.jumlah_benar }}</span>
+                    <span class="text-[9px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100" title="Jawaban Salah">S: {{ r.jumlah_salah }}</span>
+                    <button @click="openDetailPG(r)" class="p-0.5 text-blue-400 hover:text-blue-600 transition-colors" title="Lihat Detail Jawaban">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              </td>
               <td class="px-6 py-4 text-center font-bold text-slate-600 font-mono">{{ r.nilai_essay }}</td>
               <td class="px-6 py-4 text-center">
                 <div class="inline-flex items-center justify-center w-10 h-10 bg-violet-50 text-violet-600 rounded-xl font-black font-mono shadow-sm border border-violet-100">
@@ -222,6 +264,69 @@ onMounted(fetchData)
         </div>
       </div>
     </div>
+
+    <!-- Modal Detail Jawaban PG -->
+    <BaseModal 
+      :show="isDetailPGModalOpen"
+      :title="'Detail Jawaban PG: ' + selectedPeserta?.nama_siswa"
+      size="max-w-5xl"
+      @close="isDetailPGModalOpen = false"
+    >
+      <template #footer>
+         <button @click="isDetailPGModalOpen = false" class="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition-all">Tutup</button>
+      </template>
+
+      <div class="space-y-4">
+        <div v-if="jawabanLengkap.filter(j => j.jenis_soal === 'PG').length === 0" class="text-center py-12 text-slate-400 italic">
+          Tidak ada data jawaban pilihan ganda.
+        </div>
+        
+        <div v-for="(j, idx) in jawabanLengkap.filter(j => j.jenis_soal === 'PG')" :key="j.soal_id" 
+          :class="[
+            j.skor > 0 ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'
+          ]"
+          class="p-4 rounded-2xl border transition-all"
+        >
+          <div class="flex items-start gap-4">
+            <span :class="j.skor > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
+              class="flex-shrink-0 w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center border border-white shadow-sm">
+              {{ idx + 1 }}
+            </span>
+            
+            <div class="flex-grow space-y-3">
+              <div class="text-sm font-bold text-slate-800 leading-relaxed prose prose-slate max-w-none" v-html="j.pertanyaan"></div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="p-3 bg-white/60 rounded-xl border border-white/80">
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Jawaban Siswa</span>
+                  <div class="flex items-center gap-2">
+                    <span :class="j.skor > 0 ? 'text-emerald-600' : 'text-rose-600'" class="text-sm font-black font-mono">{{ j.jawaban_siswa || '-' }}</span>
+                    <span class="text-xs text-slate-600" v-html="getOpsiText(j.jawaban_siswa, j)"></span>
+                  </div>
+                </div>
+
+                <div class="p-3 bg-white/60 rounded-xl border border-white/80">
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Kunci Jawaban</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-black text-blue-600 font-mono">{{ j.kunci_jawaban }}</span>
+                    <span class="text-xs text-slate-600" v-html="getOpsiText(j.kunci_jawaban, j)"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex-shrink-0 pt-1">
+              <div v-if="j.skor > 0" class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+              </div>
+              <div v-else class="w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </BaseModal>
   </div>
 </template>
 

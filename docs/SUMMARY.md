@@ -84,7 +84,8 @@ graph TD
 - **Fix IDOR**: ✅ COMPLETED (May 2026).
 - **Timer Hardening**: ✅ COMPLETED (May 2026).
 - **Session Reset Logic Fix**: ✅ COMPLETED (May 2026) - Fixed timer wiping & State Leakage.
-- **Total Reset Feature**: ✅ COMPLETED (May 2026) - Clean restart with DB & LocalStorage purge.
+- **Total Reset Feature**: ✅ COMPLETED (May 2026) - Clean restart with DB, LocalStorage purge, and AttemptID Fencing.
+- **Mobile Responsive UX**: ✅ COMPLETED (May 2026) - Optimized layout for student exam on mobile devices.
 - **Monitoring Safety UI**: ✅ COMPLETED (May 2026) - Action dropdowns & smart positioning.
 - **Professional UI Refactor**: ✅ COMPLETED (May 2026) - Indigo-Glass aesthetics & compact design.
 - **Smart Auto-Unlock**: ✅ COMPLETED (May 2026) - Real-time block recovery via polling.
@@ -97,7 +98,6 @@ graph TD
 - **Query Optimization**: ✅ COMPLETED (May 2026) - Evaluasi performa (Stress Test) menunjukkan kode asli paling efisien.
 
 ### 🟢 Low Priority: Future Improvements
-- **WebSocket**: Migrasi dari polling ke real-time bi-directional.
 - **AI Proctoring**: Integrasi verifikasi wajah.
 - **Export standard (QTI)**: Mendukung format industri.
 

@@ -20,8 +20,10 @@ const filterKelas = ref('')
 const searchQuery = ref('')
 
 const isKoreksiModalOpen = ref(false)
+const isDetailPGModalOpen = ref(false)
 const selectedPeserta = ref(null)
 const jawabanPeserta = ref([])
+const jawabanLengkap = ref([])
 const isSaving = ref(false)
 const isArchiving = ref(false)
 const showArchiveConfirm = ref(false)
@@ -122,6 +124,35 @@ const openKoreksi = async (peserta) => {
   }
 }
 
+const openDetailPG = async (peserta) => {
+  selectedPeserta.value = peserta
+  isDetailPGModalOpen.value = true
+  jawabanLengkap.value = []
+  
+  try {
+    const res = await fetch(`${apiPrefix.value}/monitor/jawaban/${peserta.id}`, {
+      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    })
+    const d = await res.json()
+    if (res.ok) {
+      // Ambil seluruh jawaban untuk dianalisis (fokus PG di UI)
+      jawabanLengkap.value = d.data || []
+    }
+  } catch (e) {
+    alertStore.showAlert("Gagal mengambil detail jawaban", "error")
+  }
+}
+
+const getOpsiText = (jawaban, item) => {
+  if (!jawaban) return '(Tidak menjawab)'
+  const key = jawaban.toUpperCase()
+  if (key === 'A') return item.opsi_a
+  if (key === 'B') return item.opsi_b
+  if (key === 'C') return item.opsi_c
+  if (key === 'D') return item.opsi_d
+  return jawaban
+}
+
 const saveKoreksi = async () => {
   isSaving.value = true
   try {
@@ -158,9 +189,9 @@ const exportExcel = () => {
   if (!selectedJadwalId.value) return
   
   // Simple CSV Export
-  let csv = 'No,Nama Siswa,NISN,Kelas,Nilai PG,Nilai Essay,Total Nilai,Status,Waktu Selesai\n'
+  let csv = 'No,Nama Siswa,NISN,Kelas,Nilai PG,Benar,Salah,Nilai Essay,Total Nilai,Status,Waktu Selesai\n'
   filteredResults.value.forEach((r, i) => {
-    csv += `${i+1},"${r.nama_siswa}","${r.nisn}","${r.kelas}",${r.nilai_pg},${r.nilai_essay},${r.total_nilai},"${r.status_ujian}","${r.waktu_selesai}"\n`
+    csv += `${i+1},"${r.nama_siswa}","${r.nisn}","${r.kelas}",${r.nilai_pg},${r.jumlah_benar},${r.jumlah_salah},${r.nilai_essay},${r.total_nilai},"${r.status_ujian}","${r.waktu_selesai}"\n`
   })
   
   const blob = new Blob([csv], { type: 'text/csv' })
@@ -356,14 +387,35 @@ onMounted(async () => {
                     {{ r.status_ujian }}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-center font-bold text-slate-600 font-mono">{{ r.nilai_pg }}</td>
+                <td class="px-6 py-4 text-center font-bold text-slate-600 font-mono">
+                  <div class="flex flex-col items-center">
+                    <span class="text-sm">{{ r.nilai_pg }}</span>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100" title="Jawaban Benar">B: {{ r.jumlah_benar }}</span>
+                      <span class="text-[10px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100" title="Jawaban Salah">S: {{ r.jumlah_salah }}</span>
+                      <button @click="openDetailPG(r)" class="p-0.5 text-blue-400 hover:text-blue-600 transition-colors" title="Lihat Detail Jawaban">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      </button>
+                    </div>
+                  </div>
+                </td>
                 <td class="px-6 py-4 text-center font-bold text-slate-600 font-mono">{{ r.nilai_essay }}</td>
                 <td class="px-6 py-4 text-center">
                   <span class="text-lg font-black text-blue-600 font-mono">{{ r.total_nilai }}</span>
                 </td>
                 <td class="px-6 py-4 text-right">
-                   <button @click="openKoreksi(r)" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Koreksi Jawaban">
-                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                   <button 
+                    @click="openKoreksi(r)" 
+                    :class="[
+                      r.is_koreksi 
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                        : 'bg-blue-50 text-blue-600 border-blue-100'
+                    ]"
+                    class="p-2.5 rounded-xl transition-all border shadow-sm group-hover:scale-110" 
+                    :title="r.is_koreksi ? 'Update Nilai' : 'Koreksi Jawaban'"
+                   >
+                     <svg v-if="!r.is_koreksi" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                     <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                    </button>
                 </td>
               </tr>
@@ -433,6 +485,72 @@ onMounted(async () => {
                     class="w-full px-4 py-2 bg-white border-2 border-blue-100 rounded-xl font-black text-blue-600 focus:border-blue-500 outline-none transition-all"
                  >
                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </BaseModal>
+
+    <!-- Modal Detail Jawaban PG -->
+    <BaseModal 
+      :show="isDetailPGModalOpen"
+      :title="'Detail Jawaban PG: ' + selectedPeserta?.nama_siswa"
+      size="max-w-5xl"
+      @close="isDetailPGModalOpen = false"
+    >
+      <template #footer>
+         <button @click="isDetailPGModalOpen = false" class="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition-all">Tutup</button>
+      </template>
+
+      <div class="space-y-4">
+        <div v-if="jawabanLengkap.filter(j => j.jenis_soal === 'PG').length === 0" class="text-center py-12 text-slate-400 italic">
+          Tidak ada data jawaban pilihan ganda.
+        </div>
+        
+        <div v-for="(j, idx) in jawabanLengkap.filter(j => j.jenis_soal === 'PG')" :key="j.soal_id" 
+          :class="[
+            j.skor > 0 ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'
+          ]"
+          class="p-4 rounded-2xl border transition-all"
+        >
+          <div class="flex items-start gap-4">
+            <span :class="j.skor > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
+              class="flex-shrink-0 w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center border border-white shadow-sm">
+              {{ idx + 1 }}
+            </span>
+            
+            <div class="flex-grow space-y-3">
+              <div class="text-sm font-bold text-slate-800 leading-relaxed prose prose-slate max-w-none" v-html="j.pertanyaan"></div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Jawaban Siswa -->
+                <div class="p-3 bg-white/60 rounded-xl border border-white/80">
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Jawaban Siswa</span>
+                  <div class="flex items-center gap-2">
+                    <span :class="j.skor > 0 ? 'text-emerald-600' : 'text-rose-600'" class="text-sm font-black font-mono">{{ j.jawaban_siswa || '-' }}</span>
+                    <span class="text-xs text-slate-600" v-html="getOpsiText(j.jawaban_siswa, j)"></span>
+                  </div>
+                </div>
+
+                <!-- Kunci Jawaban -->
+                <div class="p-3 bg-white/60 rounded-xl border border-white/80">
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Kunci Jawaban</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-black text-blue-600 font-mono">{{ j.kunci_jawaban }}</span>
+                    <span class="text-xs text-slate-600" v-html="getOpsiText(j.kunci_jawaban, j)"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status Icon -->
+            <div class="flex-shrink-0 pt-1">
+              <div v-if="j.skor > 0" class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+              </div>
+              <div v-else class="w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </div>
             </div>
           </div>
         </div>

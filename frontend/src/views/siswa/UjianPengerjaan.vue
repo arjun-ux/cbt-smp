@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth'
 import { useAlertStore } from '../../store/alert'
@@ -18,6 +18,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const alertStore = useAlertStore()
 const examStore = useExamStore()
+const examContainer = ref(null)
 
 // 1. Logic & Security
 useAntiCheat()
@@ -27,8 +28,8 @@ useExamTimer((isAuto) => {
 
 const renderMath = () => {
   nextTick(() => {
-    if (window.renderMathInElement) {
-      window.renderMathInElement(document.body, {
+    if (window.renderMathInElement && examContainer.value) {
+      window.renderMathInElement(examContainer.value, {
         delimiters: [
           { left: '$$', right: '$$', display: true },
           { left: '$', right: '$', display: false },
@@ -60,6 +61,9 @@ const initializeExam = async () => {
 }
 
 const finishExam = async (isAuto = false) => {
+  // Tutup navigasi mobile jika sedang terbuka agar tidak menutupi modal konfirmasi
+  examStore.isNavModalOpen = false
+
   if (!isAuto && !examStore.showFinishConfirm) {
     examStore.showFinishConfirm = true
     return
@@ -87,6 +91,8 @@ const finishExam = async (isAuto = false) => {
   }
 }
 
+const isDev = import.meta.env.DEV
+
 onMounted(() => {
   initializeExam()
 })
@@ -95,7 +101,7 @@ watch(() => examStore.currentIdx, () => renderMath())
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
+  <div ref="examContainer" :class="{ 'no-select': !isDev }" class="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
     
     <!-- BLOCKED OVERLAY -->
     <div v-if="examStore.isTerblokir" class="fixed inset-0 z-[99999] bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-6 text-center">
@@ -127,7 +133,7 @@ watch(() => examStore.currentIdx, () => renderMath())
         <div class="lg:col-span-8 space-y-6">
           
 
-          <QuestionBox :soal="examStore.currentQuestion" />
+          <QuestionBox :key="examStore.currentIdx" :soal="examStore.currentQuestion" />
         </div>
 
         <div class="hidden lg:block lg:col-span-4 space-y-4">
@@ -144,23 +150,6 @@ watch(() => examStore.currentIdx, () => renderMath())
           </div>
 
           <ExamNavigator @finish="finishExam(false)" />
-
-          <!-- STATUS SINKRONISASI (CLEAN) -->
-          <div :class="[
-            examStore.syncStatus === 'synced' ? 'bg-emerald-500' : 
-            examStore.syncStatus === 'pending' ? 'bg-amber-500' :
-            examStore.syncStatus === 'offline' ? 'bg-rose-500' : 'bg-indigo-600'
-          ]" class="p-5 rounded-2xl text-white shadow-lg transition-all duration-500 overflow-hidden relative">
-            <div class="flex items-center justify-between relative z-10">
-              <div class="flex items-center gap-2">
-                <div class="w-2 h-2 bg-white rounded-full" :class="{ 'animate-ping': examStore.syncStatus !== 'synced' }"></div>
-                <span class="text-xs font-black uppercase tracking-widest">
-                  {{ examStore.syncStatus === 'synced' ? 'Synced' : 'Syncing...' }}
-                </span>
-              </div>
-              <span v-if="examStore.lastSyncTime" class="text-[9px] font-bold opacity-70">{{ examStore.lastSyncTime }}</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -176,7 +165,7 @@ watch(() => examStore.currentIdx, () => renderMath())
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
-        <ExamNavigator :is-mobile="true" @close="examStore.isNavModalOpen = false" />
+        <ExamNavigator :is-mobile="true" @close="examStore.isNavModalOpen = false" @finish="finishExam(false)" />
       </div>
     </div>
 

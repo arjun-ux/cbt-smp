@@ -81,6 +81,10 @@ Endpoint standar CRUD untuk data master sekolah.
 - **Request Body**: `[{ "soal_id": 1, "skor": 10.5 }]`
 - **Side Effect**: Update `nilai_essay` di tabel peserta.
 
+### 4.2 Get Detail Jawaban
+- **Route**: `GET /api/[role]/monitor/jawaban/:pesertaId`
+- **Tujuan**: Mengambil seluruh detail pertanyaan, jawaban siswa, kunci jawaban, dan teks opsi untuk keperluan koreksi essay atau analisis perbandingan PG.
+
 ### 4.2 Analisis Butir Soal
 - **Route**: `GET /api/[role]/analisis/:jadwalId`
 - **Response**: Statistik tingkat kesukaran dan sebaran pilihan jawaban untuk setiap butir soal.

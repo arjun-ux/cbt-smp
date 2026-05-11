@@ -42,13 +42,48 @@ export function useAntiCheat() {
     handleSecurityBreach("Pindah Tab / Keluar Layar")
   }
 
+  const preventDefaults = (e) => {
+    e.preventDefault()
+    return false
+  }
+
+  const handleKeydown = (e) => {
+    // Blokir F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (
+      e.keyCode === 123 || 
+      (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || 
+      (e.ctrlKey && e.keyCode === 85)
+    ) {
+      e.preventDefault()
+      return false
+    }
+  }
+
   onMounted(() => {
     toggleFullscreen()
     window.addEventListener('blur', handleBlur)
+    
+    // Keamanan Konten - Hanya aktif jika BUKAN mode Development
+    if (!import.meta.env.DEV) {
+      document.addEventListener('contextmenu', preventDefaults)
+      document.addEventListener('copy', preventDefaults)
+      document.addEventListener('paste', preventDefaults)
+      document.addEventListener('selectstart', preventDefaults)
+      document.addEventListener('keydown', handleKeydown)
+    } else {
+      console.log("Anti-Cheat: Mode Development terdeteksi, proteksi konten dinonaktifkan untuk debugging.")
+    }
   })
 
   onUnmounted(() => {
     window.removeEventListener('blur', handleBlur)
+    if (!import.meta.env.DEV) {
+      document.removeEventListener('contextmenu', preventDefaults)
+      document.removeEventListener('copy', preventDefaults)
+      document.removeEventListener('paste', preventDefaults)
+      document.removeEventListener('selectstart', preventDefaults)
+      document.removeEventListener('keydown', handleKeydown)
+    }
   })
 
   return {

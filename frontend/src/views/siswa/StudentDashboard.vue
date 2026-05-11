@@ -79,16 +79,6 @@ const validateToken = async () => {
 
     const d = await res.json()
     if (res.ok) {
-      // Jika ini adalah sesi baru (Reset Total), bersihkan sampah LocalStorage segera!
-      if (d.data.is_new_session) {
-        const key = `answers_${d.data.peserta_id}`
-        console.log("!!! RESET TOTAL DETECTED !!!", "Cleaning key:", key)
-        localStorage.removeItem(key)
-        // Pastikan memori juga bersih jika ada state tersisa
-        const examStore = (await import('../../store/exam')).useExamStore()
-        examStore.clearStore()
-      }
-
       // Simpan data sesi ujian
       sessionStorage.setItem('exam_session', JSON.stringify(d.data))
       showTokenModal.value = false

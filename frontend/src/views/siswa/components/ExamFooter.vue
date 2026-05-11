@@ -20,15 +20,15 @@ const handleRagu = () => {
 
 <template>
   <div class="fixed bottom-0 inset-x-0 z-[70] bg-white/80 backdrop-blur-xl border-t border-slate-200/60 p-4 lg:p-6 shadow-lg">
-    <div class="max-w-[1400px] mx-auto flex items-center justify-between gap-3 lg:gap-5">
+    <div class="max-w-[1400px] mx-auto flex items-center justify-between gap-2 lg:gap-5">
       <!-- Prev Button -->
       <button 
         @click="handlePrev" 
         :disabled="examStore.currentIdx === 0" 
-        class="flex-1 lg:flex-none px-6 lg:px-12 py-3 lg:py-4 bg-white border-2 border-slate-100 rounded-xl text-[10px] lg:text-sm font-black text-slate-500 hover:bg-slate-50 disabled:opacity-30 transition-all uppercase tracking-widest active:scale-95 flex items-center justify-center gap-2"
+        class="flex-1 lg:flex-none px-4 lg:px-12 py-3.5 lg:py-4 bg-white border-2 border-slate-100 rounded-2xl text-[10px] lg:text-sm font-black text-slate-500 hover:bg-slate-50 disabled:opacity-20 transition-all uppercase tracking-widest active:scale-90 flex items-center justify-center gap-2 shadow-sm"
       >
-        <svg class="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
-        <span class="hidden sm:inline">Sebelumnya</span>
+        <svg class="w-5 h-5 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
+        <span class="hidden md:inline">Sebelumnya</span>
       </button>
 
       <!-- Ragu Button -->

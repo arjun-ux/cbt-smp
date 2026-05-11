@@ -35,23 +35,27 @@ defineEmits(['open-nav', 'finish'])
       
       <!-- Right: Timer & Actions -->
       <div class="flex items-center gap-3 lg:gap-6">
-        <div :class="examStore.timeLeft < 300 ? 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse' : 'bg-slate-50 text-slate-700 border-slate-100'" class="flex items-center gap-3 px-4 py-2 lg:px-5 lg:py-2.5 rounded-2xl border transition-all duration-500">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <!-- SYNC INDICATOR (NEW: Mobile Friendly) -->
+        <div 
+          :title="examStore.syncStatus"
+          class="w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all duration-500 border"
+          :class="[
+            examStore.syncStatus === 'synced' ? 'bg-emerald-50 border-emerald-100 text-emerald-500' : 
+            examStore.syncStatus === 'pending' ? 'bg-amber-50 border-amber-100 text-amber-500' :
+            examStore.syncStatus === 'offline' ? 'bg-rose-50 border-rose-100 text-rose-500' : 'bg-indigo-50 border-indigo-100 text-indigo-500'
+          ]"
+        >
+          <div class="w-2 h-2 rounded-full bg-current" :class="{ 'animate-ping': examStore.syncStatus !== 'synced' }"></div>
+        </div>
+
+        <div :class="examStore.timeLeft < 300 ? 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse' : 'bg-slate-50 text-slate-700 border-slate-100'" class="flex items-center gap-3 px-3 py-2 lg:px-5 lg:py-2.5 rounded-xl lg:rounded-2xl border transition-all duration-500">
+          <svg class="w-4 h-4 hidden xs:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           <span class="text-xs lg:text-sm font-black font-mono tracking-widest">{{ formatTime(examStore.timeLeft) }}</span>
         </div>
 
-        <div class="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
         
         <button @click="$emit('open-nav')" class="lg:hidden flex items-center justify-center w-10 h-10 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        </button>
-        
-        <button 
-          @click="$emit('finish')" 
-          :disabled="!examStore.isAllAnswered"
-          class="hidden sm:block px-6 py-2.5 bg-slate-900 hover:bg-rose-600 disabled:bg-slate-100 disabled:text-slate-300 text-white rounded-2xl text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] transition-all duration-300 shadow-xl shadow-slate-200/50"
-        >
-          Selesai
         </button>
       </div>
     </div>

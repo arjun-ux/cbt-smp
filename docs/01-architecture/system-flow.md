@@ -88,3 +88,27 @@ sequenceDiagram
     Backend->>Backend: Reset is_terblokir = false
     Admin-->>Siswa: Akses Terbuka Kembali
 ```
+
+## 6. Data Integrity & Session Fencing (Anti-Pollution)
+Alur untuk menjamin kebersihan data saat terjadi Reset Total oleh Admin.
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant DB
+    participant Siswa
+    participant LocalStorage
+
+    Admin->>DB: Klik "Reset Total" (AttemptID + 1)
+    DB-->>Admin: Success
+    
+    Note over Siswa: Background Sync Berjalan
+    Siswa->>DB: POST /api/siswa/sync (Old AttemptID)
+    DB->>DB: Validasi AttemptID
+    DB-->>Siswa: 200 OK (Status: OUTDATED_SESSION)
+    
+    Siswa->>LocalStorage: removeItem() & clearStore()
+    Siswa->>Siswa: Force Page Reload
+    Siswa->>DB: GET /api/siswa/soal (New AttemptID)
+    DB-->>Siswa: Data Fresh (Kosong)
+```
