@@ -17,8 +17,11 @@ Sistem CBT ini dirancang sebagai aplikasi *high-concurrency* yang memprioritaska
 3.  **Real-time Sync**: Jawaban disimpan secara lokal (LocalStorage) dan dikirim ke server dalam batch setiap 15 detik atau saat perpindahan soal.
 
 ### Tahap 3: Finalisasi
-1.  **Submit Manual**: Siswa menekan tombol "Selesai" (Hanya aktif jika semua soal terisi).
-2.  **Automatic Scoring**: Backend menghitung skor PG secara instan dan mengunci record peserta (`status_ujian = 'Selesai'`).
+1.  **Last-Mile Sync**: Untuk menjamin integritas data, sistem menjalankan sinkronisasi data ganda sebelum submit:
+    - **Trigger 1**: Saat tombol "Selesai" diklik, sistem memicu sinkronisasi di latar belakang sembari menampilkan modal konfirmasi.
+    - **Trigger 2**: Saat tombol "Ya, Selesai" di konfirmasi, sistem melakukan `await` pada proses sinkronisasi terakhir untuk memastikan jawaban soal terakhir tidak tertinggal.
+2.  **Submit Manual**: Siswa menekan konfirmasi final. Backend melakukan perhitungan skor PG secara instan dan mengunci record peserta (`status_ujian = 'Selesai'`).
+3.  **Automatic Scoring**: Hasil ujian diproses dan status dikunci agar tidak bisa diubah kembali.
 
 ---
 

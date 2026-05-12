@@ -49,6 +49,7 @@ func ConnectDB() {
 		&models.LogSistem{},
 		&models.LogUjian{},
 		&models.CBTRekapNilai{},
+		&models.CBTSetting{},
 	)
 
 	if err != nil {

@@ -38,6 +38,7 @@ Sistem CBT ini adalah aplikasi penilaian akademik berbasis web yang dirancang un
 - [Exam Pengerjaan](docs/05-pages/exam-pengerjaan-page.md)
 - [Monitoring Dashboard](docs/05-pages/monitoring-page.md)
 - [Reporting & Scoring](docs/05-pages/report-page.md)
+- [Cetak Kartu Ujian](docs/05-pages/cetak-kartu-page.md)
 - [Student Dashboard](docs/05-pages/student-dashboard.md)
 
 ### 📂 [07-Exam Flow](docs/07-exam-flow/)
@@ -90,6 +91,7 @@ graph TD
 - **Professional UI Refactor**: ✅ COMPLETED (May 2026) - Indigo-Glass aesthetics & compact design.
 - **Smart Auto-Unlock**: ✅ COMPLETED (May 2026) - Real-time block recovery via polling.
 - **Unified API Response**: ✅ COMPLETED (May 2026) - Backend refactor.
+- **School Identity Management**: ✅ COMPLETED (May 2026) - Integrated profile, logo (Base64), and leadership selection linked to Guru database.
 - **JWT Expiry**: Penyesuaian durasi sesi siswa.
 
 ### 🟡 Medium Priority: Maintenance & Quality
@@ -104,5 +106,5 @@ graph TD
 ---
 
 **Status Dokumentasi**: ✅ Lengkap (Production Ready)  
-**Terakhir Diperbarui**: 2026-05-10  
+**Terakhir Diperbarui**: 2026-05-13  
 **Disusun Oleh**: Senior Architect & Analyst Team

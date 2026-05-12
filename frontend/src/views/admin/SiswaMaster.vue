@@ -39,6 +39,7 @@ const sesis = ref([])
 
 const form = ref({
   nisn: '',
+  nomor_peserta: '',
   nama_lengkap: '',
   password: '',
   kelas_id: null,
@@ -67,6 +68,7 @@ const filteredSiswas = computed(() => {
   return siswas.value.filter(s => 
     s.nama_lengkap.toLowerCase().includes(q) || 
     s.nisn.toLowerCase().includes(q) ||
+    (s.nomor_peserta && s.nomor_peserta.toLowerCase().includes(q)) ||
     s.kelas?.nama_kelas?.toLowerCase().includes(q)
   )
 })
@@ -102,7 +104,15 @@ const fetchMasterData = async () => {
 const openAdd = () => {
   isEditMode.value = false
   editId.value = null
-  form.value = { nisn: '', nama_lengkap: '', password: '', kelas_id: null, ruang_id: null, sesi_id: null }
+  form.value = { 
+    nisn: '', 
+    nomor_peserta: '', 
+    nama_lengkap: '', 
+    password: '', 
+    kelas_id: null, 
+    ruang_id: null, 
+    sesi_id: null 
+  }
   showForm.value = true
 }
 
@@ -111,8 +121,9 @@ const openEdit = (siswa) => {
   editId.value = siswa.id
   form.value = {
     nisn: siswa.nisn,
+    nomor_peserta: siswa.nomor_peserta || '',
     nama_lengkap: siswa.nama_lengkap,
-    password: '',
+    password: '', // Password tetap kosong saat edit kecuali ingin diubah
     kelas_id: siswa.kelas_id,
     ruang_id: siswa.ruang_id,
     sesi_id: siswa.sesi_id
@@ -292,9 +303,10 @@ const handleFileChange = (event) => {
       if (cols.length >= 3) {
         parsedData.push({
           nisn: cols[0]?.trim(),
-          nama: cols[1]?.trim(),
-          password: cols[2]?.trim(),
-          kelas: cols[3]?.trim() || '-'
+          nomor_peserta: cols[1]?.trim(),
+          nama: cols[2]?.trim(),
+          password: cols[3]?.trim(),
+          kelas: cols[4]?.trim() || '-'
         })
       }
     }
@@ -340,7 +352,7 @@ const confirmImport = async () => {
 }
 
 const downloadTemplate = () => {
-  const csvContent = "NISN,NamaLengkap,Password,Kelas\n2021001,Ahmad Siswa,Siswa123,7A\n2021002,Siti Siswi,Siswa456,8B"
+  const csvContent = "NISN,NomorPeserta,NamaLengkap,Password,Kelas\n2021001,2526.09.001,Ahmad Siswa,Siswa123,7A\n2021002,2526.09.002,Siti Siswi,Siswa456,8B"
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement("a")
   const url = URL.createObjectURL(blob)
@@ -401,15 +413,19 @@ onMounted(() => {
             <table class="min-w-full divide-y divide-slate-100">
               <thead class="bg-slate-50">
                 <tr>
+                  <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">No. Peserta</th>
                   <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">NISN</th>
                   <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Nama Lengkap</th>
+                  <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Password</th>
                   <th class="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Kelas</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 bg-white">
                 <tr v-for="(row, i) in previewData" :key="i" class="hover:bg-slate-50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-black text-blue-600">{{ row.nomor_peserta }}</td>
                   <td class="px-6 py-4 text-sm font-bold text-slate-700">{{ row.nisn }}</td>
                   <td class="px-6 py-4 text-sm text-slate-600">{{ row.nama }}</td>
+                  <td class="px-6 py-4 text-sm font-mono text-slate-400">{{ row.password }}</td>
                   <td class="px-6 py-4 text-sm">
                     <span class="px-3 py-1 bg-blue-50 text-blue-600 font-black rounded-lg text-xs border border-blue-100">{{ row.kelas }}</span>
                   </td>
@@ -465,16 +481,18 @@ onMounted(() => {
               <th class="px-6 py-4 w-10">
                 <input type="checkbox" :checked="selectedIds.length === paginatedSiswas.length && paginatedSiswas.length > 0" @change="toggleSelectAll" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
               </th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">No. Peserta</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">NISN / Username</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Lengkap</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Penempatan</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Password</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
               <th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-slate-50">
             <tr v-if="isLoading">
-              <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+              <td colspan="8" class="px-6 py-12 text-center text-slate-400">
                 <div class="flex flex-col items-center gap-2">
                   <svg class="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                   <span class="text-sm font-medium">Memuat data...</span>
@@ -482,12 +500,13 @@ onMounted(() => {
               </td>
             </tr>
             <tr v-else-if="filteredSiswas.length === 0">
-              <td colspan="6" class="px-6 py-12 text-center text-slate-400 italic">Data siswa tidak ditemukan.</td>
+              <td colspan="8" class="px-6 py-12 text-center text-slate-400 italic">Data siswa tidak ditemukan.</td>
             </tr>
             <tr v-for="siswa in paginatedSiswas" :key="siswa.id" class="hover:bg-slate-50/50 transition-colors group">
               <td class="px-6 py-4">
                 <input type="checkbox" v-model="selectedIds" :value="siswa.id" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
               </td>
+              <td class="px-6 py-4 text-sm font-black text-blue-600">{{ siswa.nomor_peserta || '-' }}</td>
               <td class="px-6 py-4 text-sm font-bold text-slate-800">{{ siswa.nisn }}</td>
               <td class="px-6 py-4 text-sm text-slate-600 font-medium">{{ siswa.nama_lengkap }}</td>
               <td class="px-6 py-4 text-xs font-semibold text-slate-500">
@@ -496,6 +515,9 @@ onMounted(() => {
                   <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100" title="Ruang">R: {{ siswa.ruang?.nama_ruang || '-' }}</span>
                   <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md border border-slate-200" title="Sesi">S: {{ siswa.sesi?.nama_sesi || '-' }}</span>
                 </div>
+              </td>
+              <td class="px-6 py-4 text-sm font-mono text-slate-400 group-hover:text-slate-600 transition-colors">
+                {{ siswa.user?.password_plain || '********' }}
               </td>
               <td class="px-6 py-4 text-sm cursor-pointer" @click="toggleStatus(siswa)" title="Klik untuk mengubah status">
                 <span v-if="siswa.user?.is_active" class="px-2.5 py-1 text-[10px] font-black uppercase rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-colors">Aktif</span>
@@ -561,6 +583,16 @@ onMounted(() => {
       <div class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">No. Peserta Ujian</label>
+            <input v-model="form.nomor_peserta" type="text" placeholder="Contoh: 2526.09.001" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm font-bold text-blue-600">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Lengkap Siswa</label>
+            <input v-model="form.nama_lengkap" type="text" placeholder="Masukkan nama lengkap siswa" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <label class="block text-sm font-semibold text-slate-700 mb-1.5">NISN / Username Login</label>
             <input v-model="form.nisn" type="text" placeholder="Contoh: 2021001" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
           </div>
@@ -569,12 +601,8 @@ onMounted(() => {
               Password 
               <span v-if="isEditMode" class="text-[10px] font-normal text-slate-400 italic">(Kosongkan jika tidak diubah)</span>
             </label>
-            <input v-model="form.password" type="password" :required="!isEditMode" placeholder="••••••••" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
+            <input v-model="form.password" type="text" :required="!isEditMode" placeholder="Masukkan password siswa" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
           </div>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Lengkap Siswa</label>
-          <input v-model="form.nama_lengkap" type="text" placeholder="Masukkan nama lengkap siswa" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>

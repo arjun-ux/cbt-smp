@@ -126,6 +126,16 @@ const routes = [
         path: 'riwayat-nilai',
         name: 'AdminRiwayat',
         component: () => import('../views/admin/RiwayatNilai.vue')
+      },
+      {
+        path: 'pengaturan',
+        name: 'AdminSettings',
+        component: () => import('../views/admin/SchoolSettings.vue')
+      },
+      {
+        path: 'cetak-kartu',
+        name: 'AdminCetakKartu',
+        component: () => import('../views/admin/CetakKartu.vue')
       }
     ]
   },

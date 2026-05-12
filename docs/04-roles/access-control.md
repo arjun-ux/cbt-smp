@@ -20,6 +20,9 @@ Menggunakan middleware `RoleRequired()` untuk membatasi akses group rute ke role
 
 > [!IMPORTANT]
 > Role **Admin** secara eksplisit diberikan izin untuk mengakses rute **Guru**, memberikan fleksibilitas bagi admin untuk membantu guru mengelola soal atau memantau ujian.
+> 
+> [!NOTE]
+> Di sisi **Frontend**, Admin memiliki bypass untuk membuka halaman Dashboard Siswa guna keperluan pengujian tampilan. Namun, di sisi **Backend**, rute API Siswa (`/api/siswa`) tetap diproteksi ketat hanya untuk role `"siswa"`. Hal ini menjamin bahwa Admin tidak dapat mengambil data ujian siswa atau melakukan kecurangan data, meskipun secara visual bisa membuka halaman tersebut.
 
 ## 2. Frontend Navigation Guard (Vue/Vite)
 Proteksi dilakukan di `frontend/src/router/index.js` menggunakan global navigation guard `router.beforeEach`.

@@ -109,6 +109,13 @@ func SetupRoutes(router fiber.Router) {
 	admin.Put("/soal/:id", handlers.UpdateSoal)
 	admin.Delete("/soal/:id", handlers.DeleteSoal)
 
+	// Pengaturan Sekolah
+	admin.Get("/settings", handlers.GetSettings)
+	admin.Post("/settings", handlers.UpdateSettings)
+
+	// Administrasi Cetak
+	admin.Get("/cetak/kartu", handlers.GetCetakKartu)
+
 	// Guru Group -> /api/guru
 	guru := protected.Group("/guru")
 	guru.Use(middleware.RoleRequired("admin", "guru"))

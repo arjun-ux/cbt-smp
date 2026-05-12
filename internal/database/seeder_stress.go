@@ -35,22 +35,33 @@ func SeedStressTestData() {
 	}
 	DB.FirstOrCreate(&bankSoal, models.CBTBankSoal{JudulBankSoal: "Ujian Simulasi 100 Siswa"})
 
-	// 3. Buat 5 Soal PG
-	for i := 1; i <= 5; i++ {
+	// 3. Buat 10 Soal PG untuk Tes Acak
+	for i := 1; i <= 10; i++ {
 		soal := models.CBTSoal{
 			BankSoalID:   bankSoal.ID,
 			JenisSoal:    "PG",
-			Pertanyaan:   fmt.Sprintf("Pertanyaan Simulasi Nomor %d", i),
-			OpsiA:        "Jawaban A",
-			OpsiB:        "Jawaban B",
-			OpsiC:        "Jawaban C",
-			OpsiD:        "Jawaban D",
+			Pertanyaan:   fmt.Sprintf("<p>Pertanyaan Tes Acak Nomor %d</p>", i),
+			OpsiA:        "Ini adalah Konten Jawaban A",
+			OpsiB:        "Ini adalah Konten Jawaban B",
+			OpsiC:        "Ini adalah Konten Jawaban C",
+			OpsiD:        "Ini adalah Konten Jawaban D",
 			KunciJawaban: "A",
 		}
 		DB.FirstOrCreate(&soal, models.CBTSoal{Pertanyaan: soal.Pertanyaan})
 	}
 
-	// 5. Buat Jadwal Ujian
+	// 4. Buat 5 Soal Essay
+	for i := 1; i <= 5; i++ {
+		soal := models.CBTSoal{
+			BankSoalID:   bankSoal.ID,
+			JenisSoal:    "ESSAY",
+			Pertanyaan:   fmt.Sprintf("<p>Pertanyaan Essay Nomor %d (Tuliskan jawaban Anda)</p>", i),
+			KunciJawaban: "Kunci jawaban essay simulasi",
+		}
+		DB.FirstOrCreate(&soal, models.CBTSoal{Pertanyaan: soal.Pertanyaan})
+	}
+
+	// 5. Buat Jadwal Ujian (Aktifkan Acak)
 	now := time.Now()
 	jadwal := models.CBTJadwalUjian{
 		BankSoalID:   bankSoal.ID,
@@ -60,6 +71,8 @@ func SeedStressTestData() {
 		RuangID:      &ruang.ID,
 		SesiID:       &sesi.ID,
 		TokenUjian:   "TEST100",
+		AcakSoal:     true, // AKTIFKAN ACAK SOAL
+		AcakJawaban:  true, // AKTIFKAN ACAK JAWABAN
 		Status:       "Berlangsung",
 	}
 	DB.FirstOrCreate(&jadwal, models.CBTJadwalUjian{TokenUjian: "TEST100"})

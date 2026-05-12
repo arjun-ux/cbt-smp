@@ -65,12 +65,17 @@ const finishExam = async (isAuto = false) => {
   examStore.isNavModalOpen = false
 
   if (!isAuto && !examStore.showFinishConfirm) {
+    // PICU SINKRONISASI DI LATAR BELAKANG (Sembari siswa membaca konfirmasi)
+    examStore.syncData(true) 
     examStore.showFinishConfirm = true
     return
   }
 
   examStore.isSubmitting = true
   try {
+    // PASTIKAN SEMUA DATA TERSINKRON (Tunggu jika sinkronisasi latar belakang belum selesai)
+    await examStore.syncData(true)
+
     const res = await fetch(`/api/siswa/submit/${examStore.examInfo.peserta_id}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authStore.token}` }

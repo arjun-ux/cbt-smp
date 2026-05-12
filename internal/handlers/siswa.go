@@ -14,12 +14,13 @@ import (
 )
 
 type SiswaInput struct {
-	NISN        string `json:"nisn"`
-	NamaLengkap string `json:"nama_lengkap"`
-	Password    string `json:"password"`
-	KelasID     uint   `json:"kelas_id"`
-	RuangID     uint   `json:"ruang_id"`
-	SesiID      uint   `json:"sesi_id"`
+	NISN         string `json:"nisn"`
+	NomorPeserta string `json:"nomor_peserta"`
+	NamaLengkap  string `json:"nama_lengkap"`
+	Password     string `json:"password"`
+	KelasID      uint   `json:"kelas_id"`
+	RuangID      uint   `json:"ruang_id"`
+	SesiID       uint   `json:"sesi_id"`
 }
 
 type BulkPlotInput struct {
@@ -61,10 +62,11 @@ func CreateSiswa(c *fiber.Ctx) error {
 
 		// 2. Buat User (Login Akun)
 		newUser := models.User{
-			Username: input.NISN, // NISN dijadikan Username
-			Password: hash,
-			Role:     "siswa",
-			IsActive: true,
+			Username:      input.NISN, // NISN dijadikan Username
+			Password:      hash,
+			PasswordPlain: input.Password, // Simpan plaintext khusus siswa untuk cetak kartu
+			Role:          "siswa",
+			IsActive:      true,
 		}
 
 		if err := tx.Create(&newUser).Error; err != nil {
@@ -78,12 +80,13 @@ func CreateSiswa(c *fiber.Ctx) error {
 		if input.SesiID > 0 { sesiID = &input.SesiID }
 
 		newSiswa := models.MasterSiswa{
-			UserID:      newUser.ID,
-			NISN:        input.NISN,
-			NamaLengkap: input.NamaLengkap,
-			KelasID:     kelasID,
-			RuangID:     ruangID,
-			SesiID:      sesiID,
+			UserID:       newUser.ID,
+			NISN:         input.NISN,
+			NomorPeserta: input.NomorPeserta,
+			NamaLengkap:  input.NamaLengkap,
+			KelasID:      kelasID,
+			RuangID:      ruangID,
+			SesiID:       sesiID,
 		}
 
 		if err := tx.Create(&newSiswa).Error; err != nil {
@@ -127,6 +130,7 @@ func UpdateSiswa(c *fiber.Ctx) error {
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		// Update tabel siswa
 		siswa.NISN = input.NISN
+		siswa.NomorPeserta = input.NomorPeserta
 		siswa.NamaLengkap = input.NamaLengkap
 		
 		// Update FK jika dikirimkan (>0)
@@ -160,6 +164,7 @@ func UpdateSiswa(c *fiber.Ctx) error {
 				return errHash
 			}
 			siswa.User.Password = hash
+			siswa.User.PasswordPlain = input.Password
 		}
 		
 		if err := tx.Save(&siswa.User).Error; err != nil {
@@ -253,23 +258,25 @@ func ImportSiswa(c *fiber.Ctx) error {
 
 	// 1. Kumpulkan data mentah
 	type TempSiswa struct {
-		nisn      string
-		nama      string
-		password  string
-		namaKelas string
+		nisn         string
+		nomorPeserta string
+		nama         string
+		password     string
+		namaKelas    string
 	}
 	var rawData []TempSiswa
 	for i, row := range records {
 		if i == 0 { continue }
-		if len(row) < 3 { continue }
+		if len(row) < 4 { continue } // Minimal NISN, NoPeserta, Nama, Password
 		rawData = append(rawData, TempSiswa{
-			nisn:      strings.TrimSpace(row[0]),
-			nama:      strings.TrimSpace(row[1]),
-			password:  strings.TrimSpace(row[2]),
-			namaKelas: "",
+			nisn:         strings.TrimSpace(row[0]),
+			nomorPeserta: strings.TrimSpace(row[1]),
+			nama:         strings.TrimSpace(row[2]),
+			password:     strings.TrimSpace(row[3]),
+			namaKelas:    "",
 		})
-		if len(row) >= 4 {
-			rawData[len(rawData)-1].namaKelas = strings.TrimSpace(row[3])
+		if len(row) >= 5 {
+			rawData[len(rawData)-1].namaKelas = strings.TrimSpace(row[4])
 		}
 	}
 
@@ -282,10 +289,11 @@ func ImportSiswa(c *fiber.Ctx) error {
 			defer wg.Done()
 			hash, _ := utils.HashPassword(rawData[idx].password)
 			users[idx] = models.User{
-				Username: rawData[idx].nisn,
-				Password: hash,
-				Role:     "siswa",
-				IsActive: true,
+				Username:      rawData[idx].nisn,
+				Password:      hash,
+				PasswordPlain: rawData[idx].password, // Simpan password asli untuk cetak kartu
+				Role:          "siswa",
+				IsActive:      true,
 			}
 		}(i)
 	}
@@ -312,10 +320,11 @@ func ImportSiswa(c *fiber.Ctx) error {
 				kID = &id
 			}
 			siswas = append(siswas, models.MasterSiswa{
-				UserID:      u.ID,
-				NISN:        t.nisn,
-				NamaLengkap: t.nama,
-				KelasID:     kID,
+				UserID:       u.ID,
+				NISN:         t.nisn,
+				NomorPeserta: t.nomorPeserta,
+				NamaLengkap:  t.nama,
+				KelasID:      kID,
 			})
 		}
 		return tx.Create(&siswas).Error

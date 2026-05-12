@@ -140,3 +140,11 @@ Mencatat aktivitas siswa selama ujian (login, pindah tab, submit).
 
 ### Tabel: `cbt_rekap_nilais`
 Snapshot hasil ujian untuk arsip permanen setelah jadwal ditutup.
+
+## 6. Configuration
+### Tabel: `cbt_settings`
+| Kolom | Tipe | Deskripsi |
+| :--- | :--- | :--- |
+| `id` | uint (PK) | Primary Key |
+| `key` | string (Unique) | Nama pengaturan (e.g., `nama_sekolah`, `logo_sekolah`) |
+| `value` | text | Nilai dari pengaturan tersebut (mendukung string panjang/Base64) |

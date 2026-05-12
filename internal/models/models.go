@@ -6,13 +6,14 @@ import (
 
 // User merepresentasikan akun login
 type User struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Username  string    `gorm:"uniqueIndex;not null" json:"username"`
-	Password  string    `gorm:"not null" json:"-"`
-	Role      string    `gorm:"type:varchar(20);not null" json:"role"` // admin, guru, siswa
-	IsActive  bool      `gorm:"default:true" json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	Username      string    `gorm:"uniqueIndex;not null" json:"username"`
+	Password      string    `gorm:"not null" json:"-"`
+	PasswordPlain string    `gorm:"type:text" json:"password_plain,omitempty"` // Hanya untuk siswa
+	Role          string    `gorm:"type:varchar(20);not null" json:"role"`     // admin, guru, siswa
+	IsActive      bool      `gorm:"default:true" json:"is_active"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // Master Kelas
@@ -39,17 +40,18 @@ type MasterSesi struct {
 
 // Master Siswa
 type MasterSiswa struct {
-	ID          uint        `gorm:"primaryKey" json:"id"`
-	UserID      uint        `gorm:"index" json:"user_id"`
-	User        User        `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"user"`
-	NISN        string      `gorm:"type:varchar(20);uniqueIndex" json:"nisn"`
-	NamaLengkap string      `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
-	KelasID     *uint       `gorm:"index" json:"kelas_id"`
-	Kelas       MasterKelas `gorm:"foreignKey:KelasID;constraint:OnDelete:SET NULL;" json:"kelas"`
-	RuangID     *uint       `gorm:"index" json:"ruang_id"`
-	Ruang       MasterRuang `gorm:"foreignKey:RuangID;constraint:OnDelete:SET NULL;" json:"ruang"`
-	SesiID      *uint       `gorm:"index" json:"sesi_id"`
-	Sesi        MasterSesi  `gorm:"foreignKey:SesiID;constraint:OnDelete:SET NULL;" json:"sesi"`
+	ID           uint        `gorm:"primaryKey" json:"id"`
+	UserID       uint        `gorm:"index" json:"user_id"`
+	User         User        `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"user"`
+	NISN         string      `gorm:"type:varchar(20);uniqueIndex" json:"nisn"`
+	NomorPeserta string      `gorm:"type:varchar(30)" json:"nomor_peserta"`
+	NamaLengkap  string      `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
+	KelasID      *uint       `gorm:"index" json:"kelas_id"`
+	Kelas        MasterKelas `gorm:"foreignKey:KelasID;constraint:OnDelete:SET NULL;" json:"kelas"`
+	RuangID      *uint       `gorm:"index" json:"ruang_id"`
+	Ruang        MasterRuang `gorm:"foreignKey:RuangID;constraint:OnDelete:SET NULL;" json:"ruang"`
+	SesiID       *uint       `gorm:"index" json:"sesi_id"`
+	Sesi         MasterSesi  `gorm:"foreignKey:SesiID;constraint:OnDelete:SET NULL;" json:"sesi"`
 }
 
 // Master Guru
