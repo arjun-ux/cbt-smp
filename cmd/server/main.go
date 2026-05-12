@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"fmt"
 )
 
 func openBrowser(url string) {
@@ -135,6 +136,17 @@ func main() {
 		time.Sleep(1 * time.Second)
 		openBrowser("http://localhost:" + port)
 	}()
+
+	// --- TERMINAL BANNER ---
+	fmt.Println("\n  ________________________________________________")
+	fmt.Println(" |                                                |")
+	fmt.Println(" |          APLIKASI CBT SMP SUDAH AKTIF          |")
+	fmt.Println(" |________________________________________________|")
+	fmt.Println("")
+	fmt.Printf("  Akses Server: http://localhost:%s\n", port)
+	fmt.Println("  ________________________________________________")
+	fmt.Println("\n  [TEKAN CTRL+C UNTUK BERHENTI]")
+	fmt.Println("")
 
 	log.Fatal(app.Listen(":" + port))
 }
