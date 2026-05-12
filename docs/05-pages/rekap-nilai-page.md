@@ -28,7 +28,9 @@
 - **Badge B/S**: Menampilkan jumlah jawaban Benar (Hijau) dan Salah (Merah) tepat di bawah skor PG.
 - **Tombol Detail**: Ikon informasi (biru) di samping badge B/S yang akan membuka modal perbandingan jawaban siswa vs kunci jawaban secara lengkap.
 
-### Tombol "Koreksi" (Action Table)
+### Tombol Aksi (Dynamic Status)
+- **Status Belum Koreksi**: Ditampilkan dengan ikon **Pensil Biru** (`bg-indigo-50 text-indigo-600`). Menandakan ada jawaban essay yang belum dinilai.
+- **Status Sudah Koreksi**: Ditampilkan dengan ikon **Centang Hijau** (`bg-emerald-50 text-emerald-600`). Menandakan seluruh jawaban essay siswa tersebut telah memiliki skor.
 - **Fungsi**: Membuka modal yang berisi pertanyaan dan jawaban essay siswa untuk diberikan skor manual.
     3. Guru memasukkan angka skor pada input number.
     4. Klik "Simpan Semua Nilai".

@@ -15,11 +15,17 @@ Sistem penilaian terbagi menjadi tiga layer utama:
 | :--- | :--- | :--- |
 | **Pilihan Ganda (PG)** | Otomatis | Saat siswa klik "Selesai" atau "Force Submit" oleh pengawas. |
 | **Essay** | Manual | Dinilai oleh Guru/Admin melalui dashboard koreksi. |
+| **Status Koreksi** | Flagging | Ditandai dengan kolom `is_koreksi` di tabel peserta. |
 
-## 3. Alur Lifecycle Nilai
+## 3. Fitur Pelacakan Koreksi (New)
+Untuk mempermudah administrasi, sistem kini mendukung pelacakan status koreksi essay secara visual:
+- **Pending**: Ditandai dengan ikon pensil biru di Rekap Nilai (berarti ada jawaban essay yang belum diberi nilai).
+- **Completed**: Ditandai dengan ikon centang hijau setelah semua butir essay pada siswa tersebut telah memiliki skor.
+
+## 4. Alur Lifecycle Nilai
 1.  **Ujian Berlangsung**: Skor di `cbt_jawaban_siswas` masih 0.
 2.  **Ujian Selesai**: Fungsi `HitungNilaiPG` dijalankan. `nilai_pg` diisi, `nilai_essay` masih 0.
-3.  **Masa Koreksi**: Guru mengisi skor essay. Kolom `nilai_essay` diupdate, dan `total_nilai` dihitung ulang secara otomatis (`nilai_pg + nilai_essay`).
+3.  **Masa Koreksi**: Guru mengisi skor essay. Kolom `nilai_essay` diupdate, dan `total_nilai` dihitung ulang secara otomatis (`nilai_pg + nilai_essay`). Kolom `is_koreksi` diset menjadi `true` jika penilaian selesai.
 4.  **Pengarsipan**: Admin mengunci nilai. Data disalin ke `CBTRekapNilai`. Status jadwal berubah menjadi `Diarsipkan`.
 
 ## 4. Keamanan & Integritas Nilai

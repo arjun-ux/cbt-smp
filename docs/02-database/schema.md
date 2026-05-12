@@ -117,7 +117,9 @@ Dokumen ini mendefinisikan skema tabel database SQLite yang digunakan dalam sist
 | `nilai_pg` | float64 | Total nilai pilihan ganda |
 | `nilai_essay` | float64 | Total nilai essay (manual/otomatis) |
 | `total_nilai` | float64 | Akumulasi nilai |
+| `is_koreksi` | boolean | Flag apakah essay sudah dikoreksi semua |
 | `is_terblokir` | boolean | Status blokir jika curang |
+| `attempt_id` | int | ID sesi pengerjaan (untuk reset data) |
 
 ### Tabel: `cbt_jawaban_siswas`
 | Kolom | Tipe | Deskripsi |

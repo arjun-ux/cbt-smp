@@ -9,6 +9,8 @@ Rencana perbaikan kode ini dibagi menjadi tiga fase berdasarkan urgensi dan damp
 2.  **Server-side Timer Validation**: ✅ COMPLETED (May 2026) - Implementasi Timer Hardening.
 3.  **Unified Response Format**: ✅ COMPLETED (May 2026) - Seluruh handler backend telah menggunakan helper SendSuccess dan SendError untuk konsistensi API.
 4.  **Database Concurrency Optimization**: ✅ COMPLETED (May 2026) - Implementasi **Bulk Upsert** (OnConflict) dan **Bulk SQL Update** untuk skor. Menghilangkan error `SQLITE_BUSY` secara total.
+5.  **Deterministic Randomization**: ✅ COMPLETED (May 2026) - Implementasi Seeded Shuffle dan stabilisasi urutan soal dari backend.
+6.  **DOM Stability (KaTeX Fix)**: ✅ COMPLETED (May 2026) - Lokalisasi render matematika untuk mencegah konflik dengan sistem reaktif Vue.
 
 ## Fase 2: Medium Term (Maintainability)
 *Target: 1 Bulan*
